@@ -176,9 +176,9 @@ const App = {
 
         // Admin view check
         const adminViews = ['users', 'settings'];
-        if (adminViews.includes(view) && this.state.currentRole !== '관리자') {
-            alert('관리자 권한이 필요한 메뉴입니다.');
-            this.navigate('dashboard');
+        if (adminViews.includes(view) && !this.state.isAdminLoggedIn) {
+            alert('관리자 권한이 필요한 메뉴입니다. 먼저 로그인해 주세요.');
+            this.navigate('admin-login');
             return;
         }
 
@@ -198,7 +198,7 @@ const App = {
 
         // Safety redirect if current view is restricted
         const adminViews = ['users', 'settings'];
-        if (adminViews.includes(this.state.currentView) && this.state.currentRole !== '관리자') {
+        if (adminViews.includes(this.state.currentView) && !this.state.isAdminLoggedIn) {
             this.state.currentView = 'dashboard';
         }
 
@@ -207,20 +207,70 @@ const App = {
             case 'list': this.renderList(root); break;
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
+            case 'admin-login': this.renderAdminLogin(root); break;
         }
     },
 
     updateSidebar() {
-        const isAdmin = this.state.currentRole === '관리자';
-        const adminViews = ['users', 'settings'];
+        const loggedIn = this.state.isAdminLoggedIn;
 
-        document.querySelectorAll('.nav-items .nav-item, .nav-links .nav-item').forEach(item => {
-            const view = item.getAttribute('data-view');
-            if (adminViews.includes(view)) {
-                // 부모 <li> 요소를 숨김
-                item.parentElement.style.display = isAdmin ? 'block' : 'none';
+        const adminMenu = document.getElementById('adminOnlyMenus');
+        const loginBtn = document.getElementById('adminLoginBtn');
+        const logoutBtn = document.getElementById('adminLogoutBtn');
+
+        if (adminMenu) adminMenu.style.display = loggedIn ? 'block' : 'none';
+        if (loginBtn) loginBtn.style.display = loggedIn ? 'none' : 'flex';
+        if (logoutBtn) logoutBtn.style.display = loggedIn ? 'flex' : 'none';
+
+        this.state.currentRole = loggedIn ? '관리자' : '테스터';
+    },
+
+    renderAdminLogin(container) {
+        container.innerHTML = `
+            <header class="animate-in">
+                <div>
+                    <h1>관리자 모드 접속</h1>
+                    <p class="subtitle">시스템 설정을 변경하려면 관리자 인증이 필요합니다.</p>
+                </div>
+            </header>
+
+            <div class="form-container animate-in" style="max-width: 400px; margin: 4rem auto;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <i class="fas fa-user-shield" style="font-size: 3rem; color: var(--accent); margin-bottom: 1rem;"></i>
+                    <h2>인증 필요</h2>
+                </div>
+                <form id="adminLoginForm">
+                    <div class="form-group">
+                        <label>관리자 비밀번호</label>
+                        <input type="password" id="adminPassword" placeholder="비밀번호를 입력하세요" required style="text-align: center; font-size: 1.2rem; letter-spacing: 0.5rem;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; justify-content: center;">접속하기</button>
+                    <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem; background: transparent; justify-content: center;" onclick="App.navigate('dashboard')">취소</button>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('adminLoginForm').onsubmit = (e) => {
+            e.preventDefault();
+            const pw = document.getElementById('adminPassword').value;
+            if (pw === 'admin1234') {
+                this.state.isAdminLoggedIn = true;
+                this.state.currentRole = '관리자';
+                alert('관리자 모드로 전환되었습니다.');
+                this.navigate('dashboard');
+            } else {
+                alert('비밀번호가 일치하지 않습니다.');
+                document.getElementById('adminPassword').value = '';
             }
-        });
+        };
+    },
+    handleAdminLogout() {
+        if (confirm('관리자 모드에서 로그아웃 하시겠습니까?')) {
+            this.state.isAdminLoggedIn = false;
+            this.state.currentRole = '테스터';
+            alert('로그아웃 되었습니다.');
+            this.navigate('dashboard');
+        }
     },
 
     renderUsers(container) {
@@ -340,35 +390,35 @@ const App = {
         const enabled = this.state.settings.enabledTestTypes;
 
         container.innerHTML = `
-            <header class="animate-in">
-                <div>
-                    <h1>환경 설정</h1>
-                    <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
-                </div>
-            </header>
+    < header class="animate-in" >
+        <div>
+            <h1>환경 설정</h1>
+            <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
+        </div>
+            </header >
 
-            <div class="form-container animate-in" style="max-width: 600px;">
-                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">
-                    대시보드, 목록, 등록 화면에서 노출하고 관리할 테스트 단계를 선택하세요.
-                </p>
-                
-                <form id="settingsForm">
-                    <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
-                        ${types.map(t => `
+    <div class="form-container animate-in" style="max-width: 600px;">
+        <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">
+            대시보드, 목록, 등록 화면에서 노출하고 관리할 테스트 단계를 선택하세요.
+        </p>
+
+        <form id="settingsForm">
+            <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                ${types.map(t => `
                             <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: 0.5rem; border-radius: 0.4rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" name="testTypes" value="${t}" ${enabled.includes(t) ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
                                 <span style="font-weight: 500;">${t}</span>
                             </label>
                         `).join('')}
-                    </div>
-
-                    <div style="margin-top: 2rem;">
-                        <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
-                    </div>
-                </form>
             </div>
-        `;
+
+            <div style="margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
+            </div>
+        </form>
+    </div>
+`;
 
         document.getElementById('settingsForm').onsubmit = (e) => {
             e.preventDefault();
@@ -516,7 +566,7 @@ const App = {
                     </table>
                 </div>
             </div>
-        `;
+`;
 
         // Chart.js Initialization (Weighted Stacked Bar)
         const statusCounts = {
