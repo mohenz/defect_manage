@@ -169,6 +169,7 @@ const App = {
 
     navigate(view) {
         if (view === 'register') {
+            localStorage.removeItem('pending_defect'); // 잔류 캡처 데이터 제거
             this.showRegisterModal();
             return;
         }
