@@ -1,12 +1,12 @@
 # 📋 결함관리 프로그램 설계서 (DefectFlow Design Document)
 
-**최종 수정일: 2026-02-10**  
+**최종 수정일: 2026-02-19**  
 **작성/검토: Antigravity AI Assistant**
 
 ---
 
 ## 1. 개요 및 목적
-본 문서는 결함(Defect)의 생명주기를 관리하고, 개발자가 결함을 효율적으로 재현 및 조치할 수 있도록 데이터 구조와 화면 설계를 표준화하는 것을 목적으로 합니다. 단순 기록을 넘어 **'재현성 증대'**와 **'조치 우선순위 체계화'**에 중점을 둡니다.
+본 문서는 결함(Defect)의 생명주기를 관리하고, 개발자가 결함을 효율적으로 재현 및 조치할 수 있도록 데이터 구조와 화면 설계를 표준화하는 것을 목적으로 합니다. 특히 최근 **보안 로그인**, **Supabase 기반 실시간 데이터 연동**, **테스트 벤치 위젯** 기능을 포함하여 고도화되었습니다.
 
 ---
 
@@ -23,63 +23,65 @@
 
 ---
 
-## 3. 데이터베이스 구조 (Advanced Schema)
+## 3. 데이터베이스 구조 (PostgreSQL/Supabase)
 
 ### 3.1 결함 정보 테이블 (defects)
 
 | 컬럼명 | 타입 | 설명 | 비고 |
 |:---|:---|:---|:---|
 | **defect_id** | BIGINT (PK) | 결함 고유번호 | Timestamp 기반 |
-| **title** | VARCHAR(200)| 결함명 | 명확하고 간결하게 작성 |
-| **defect_type** | VARCHAR(20) | 결함유형 | 기능오류, UI/UX, 성능 등 |
-| **severity** | VARCHAR(10) | **심각도** | Critical, Major, Minor, Simple |
+| **title** | VARCHAR(200)| 결함명 | 필수 입력 (5자 이상) |
+| **test_type** | VARCHAR(50) | 테스트 구분 | 단위, 통합, 사용자 테스트 등 |
+| **severity** | VARCHAR(20) | **심각도** | Critical, Major, Minor, Simple |
 | **priority** | VARCHAR(10) | **우선순위** | P1(긴급), P2, P3, P4 |
 | **status** | VARCHAR(20) | 결함상태 | New ~ Closed |
-| **env_info** | VARCHAR(500)| **테스트 환경** | OS, 브라우저 버전 등 (자동 수집) |
 | **steps_to_repro** | TEXT | **재현 단계** | 결함 발생 순차 경로 |
-| **expected_result** | TEXT | **기대 결과** | 정상 동작 시나리오 |
-| **actual_result** | TEXT | **실제 결과** | 오류 현상 |
-| **screenshot** | LONGTEXT | **화면 캡처** | Base64 이미지 데이터 |
-| **screen_url** | VARCHAR(500)| 발생 화면 URL | 실제 브라우저 주소 |
-| **menu_name** | VARCHAR(200)| 메뉴명 | 페이지 대분류/중분류 |
-| **screen_name** | VARCHAR(200)| 화면명 | 물리적 화면 이름 |
+| **menu_name** | VARCHAR(100)| 메뉴명 | 페이지 대분류/중분류 |
+| **screen_name** | VARCHAR(100)| 화면명 | 물리적 화면 이름 |
+| **screen_url** | TEXT | 발생 화면 URL | 실제 브라우저 주소 |
+| **screenshot** | TEXT | **화면 캡처** | Supabase Storage Public URL |
+| **env_info** | TEXT | **테스트 환경** | OS, 브라우저 버전 등 |
+| **creator** | VARCHAR(50) | 등록자 | 사용자 성함 연동 |
+| **assignee** | VARCHAR(50) | 조치자 | 담당 조치자 성함 연동 |
 | **action_comment** | TEXT | 결함조치내용 | 원인 분석 및 조치 결과 |
-| **creator** | VARCHAR(50) | 등록자 | 담당자 테이블 연동 |
-| **assignee** | VARCHAR(50) | 조치자 | 담당자 테이블 연동 |
-| **action_start** | DATETIME | 조치시작일 | |
-| **action_end** | DATETIME | 조치완료일 | |
-| **created_at** | DATETIME | 등록일시 | |
-| **updated_at** | DATETIME | 최종수정일시 | |
+| **action_start** | DATE | 조치시작일 | |
+| **action_end** | DATE | 조치완료일 | |
+| **created_at** | TIMESTAMPTZ | 등록일시 | |
+| **updated_at** | TIMESTAMPTZ | 최종수정일시 | |
 
-### 3.2 결함관리담당자 테이블 (users)
+### 3.2 사용자 테이블 (users)
 
 | 컬럼명 | 타입 | 설명 | 비고 |
 |:---|:---|:---|:---|
 | **user_id** | BIGINT (PK) | 관리번호 | Timestamp 기반 |
-| **role** | VARCHAR(20) | 역할 | 테스트, 테스터, 조치자, 관리자 |
+| **email** | VARCHAR(100)| 이메일 (UNIQUE) | 로그인 ID 및 알림용 |
+| **password** | VARCHAR(255)| 비밀번호 | BCrypt 암호화 저장 |
+| **name** | VARCHAR(50) | 성함 | 화면 표시용 |
 | **department** | VARCHAR(50) | 소속 | QA팀, 개발1팀 등 |
-| **name** | VARCHAR(50) | 이름 | 중복 피함 |
-| **email** | VARCHAR(100)| 이메일 | 알림 전용 |
+| **role** | VARCHAR(20) | 역할 | 테스터, 조치자, 관리자 |
 | **status** | VARCHAR(10) | 상태 | 사용, 사용중지 |
-| **created_at** | DATETIME | 등록일 | |
-| **updated_at** | DATETIME | 수정일 | |
+| **needs_pw_reset** | BOOLEAN | 비번 초기화 | 초기 가입/초기화 시 TRUE |
+| **created_at** | TIMESTAMPTZ | 등록일 | |
+| **updated_at** | TIMESTAMPTZ | 수정일 | |
 
 ---
 
-## 4. UI/UX 화면 설계 가이드
+## 4. UI/UX 및 보안 설계 가이드
 
-### 4.1 등록 및 수정 화면 (Form)
-- **정보 그룹화**: 기본 정보, 상세 정보, 재현 정보를 섹션으로 구분하여 가독성 확보.
-- **이미지 미리보기**: 캡처된 이미지를 즉시 확인하고, 클릭 시 확대 팝업(Image Viewer) 제공.
-- **담당자 자동 매핑**: 등록된 `users` 데이터를 기반으로 드롭다운 선택 지원.
+### 4.1 인증 및 권한 관리
+- **BCrypt 암호화**: 모든 사용자 비밀번호는 클라이언트에서 해싱 처리되어 송수신됩니다.
+- **역할 기반 제어(RBAC)**: '관리자' 권한 사용자만 설정 및 담당자 관리 메뉴에 접근 가능합니다.
+- **리다이렉트 보호**: 비로그인 사용자는 로그인 페이지로 자동 리다이렉트되며, 로그인 후 이전 작업 페이지로 복구됩니다.
 
-### 4.2 목록 및 대시보드 (View)
-- **핵심 지표 강조**: 전체 건수, 진행 중, 조치 완료, 크리티컬 결함 수를 상단 대시보드에 배치.
-- **시인성 확보**: 심각도 및 상태별로 Badge 디자인을 차별화하여 강조.
+### 4.2 외부 연동 (Test Bench)
+- **Standalone 모드**: 사이드바를 제거하고 결함 등록 폼만 풀사이즈로 제공하는 특수 모드를 지원합니다.
+- **실시간 캡처**: `html2canvas`를 이용해 위젯 클릭 시점의 화면을 자동으로 데이터화합니다.
 
 ---
 
-## 5. 핵심 준수 사항
-1.  **재현 단계 명확화**: `steps_to_repro`가 불분명할 경우 조치 불가로 판단.
-2.  **데이터 분리**: 실제 브라우저 주소(`screen_url`)와 캡처 이미지(`screenshot`) 데이터를 명확히 분리하여 저장.
-3.  **환경 자동화**: 테스터의 수동 입력을 줄이기 위해 Browser UserAgent 정보를 자동으로 수집.
+## 5. 🧠 스마트 작업 요구사항 (USER Requirements)
+본 프로젝트의 모든 개발은 다음의 3대 핵심 요구사항을 준수합니다.
+
+1.  **깊이 있는 영향도 분석**: 수정 전 전역적인 사이드 이펙트를 분석하여 기존 기능 보호.
+2.  **선제적 문제 대응**: 잠재적 오류 요소를 미리 파악하여 보강 코드 선제적 적용.
+3.  **'First-Time-Right'**: 반복 수정을 지양하고 단 한 번의 배포로 완벽한 결과 도출.
