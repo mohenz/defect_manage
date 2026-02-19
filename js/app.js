@@ -11,6 +11,7 @@ const App = {
         initialRouteHandled: false,
         currentModal: null, // 'register', 'edit', 'action'
         isStandalone: false,
+        isAdminLoggedIn: false,
         currentRole: '테스터', // '테스터', '조치자', '관리자'
         listConfig: {
             page: 1,
@@ -168,6 +169,10 @@ const App = {
     },
 
     navigate(view) {
+        if (!view) {
+            console.warn("[App] navigate called with null/undefined view, defaulting to dashboard");
+            view = 'dashboard';
+        }
         if (view === 'register') {
             localStorage.removeItem('pending_defect');
             this.showRegisterModal();

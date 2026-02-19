@@ -32,12 +32,12 @@
         </ul>
 
         <div style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
-            <a href="#" class="nav-item" id="adminLoginBtn" onclick="App.navigate('admin-login')"
+            <a href="#" class="nav-item" id="adminLoginBtn" data-view="admin-login"
                 style="background: rgba(255,255,255,0.05);">
                 <i class="fas fa-unlock-alt"></i> 관리자 로그인
             </a>
-            <a href="#" class="nav-item" id="adminLogoutBtn" onclick="App.handleAdminLogout()"
-                style="display: none; background: rgba(239, 68, 68, 0.1); color: #fca5a5;">
+            <a href="#" class="btn" id="adminLogoutBtn" onclick="App.handleAdminLogout()"
+                style="display: none; background: rgba(239, 68, 68, 0.1); color: #fca5a5; margin: 0.5rem; justify-content: center; width: calc(100% - 1rem); font-size: 0.8125rem;">
                 <i class="fas fa-sign-out-alt"></i> 관리자 로그아웃
             </a>
         </div>
