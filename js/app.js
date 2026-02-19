@@ -169,10 +169,19 @@ const App = {
 
     navigate(view) {
         if (view === 'register') {
-            localStorage.removeItem('pending_defect'); // 잔류 캡처 데이터 제거
+            localStorage.removeItem('pending_defect');
             this.showRegisterModal();
             return;
         }
+
+        // Admin view check
+        const adminViews = ['users', 'settings'];
+        if (adminViews.includes(view) && this.state.currentRole !== '관리자') {
+            alert('관리자 권한이 필요한 메뉴입니다.');
+            this.navigate('dashboard');
+            return;
+        }
+
         this.state.currentView = view;
         document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
         const navItem = document.querySelector(`[data-view="${view}"]`);
@@ -184,12 +193,34 @@ const App = {
         const root = document.getElementById('app');
         root.innerHTML = '';
 
+        // Sidebar Visibility Check
+        this.updateSidebar();
+
+        // Safety redirect if current view is restricted
+        const adminViews = ['users', 'settings'];
+        if (adminViews.includes(this.state.currentView) && this.state.currentRole !== '관리자') {
+            this.state.currentView = 'dashboard';
+        }
+
         switch (this.state.currentView) {
             case 'dashboard': this.renderDashboard(root); break;
             case 'list': this.renderList(root); break;
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
         }
+    },
+
+    updateSidebar() {
+        const isAdmin = this.state.currentRole === '관리자';
+        const adminViews = ['users', 'settings'];
+
+        document.querySelectorAll('.nav-items .nav-item, .nav-links .nav-item').forEach(item => {
+            const view = item.getAttribute('data-view');
+            if (adminViews.includes(view)) {
+                // 부모 <li> 요소를 숨김
+                item.parentElement.style.display = isAdmin ? 'block' : 'none';
+            }
+        });
     },
 
     renderUsers(container) {
