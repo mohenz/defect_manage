@@ -472,3 +472,46 @@ body.standalone-mode .modal-controls .fas-expand-alt {
 .animate-in {
     animation: fadeIn 0.4s ease-out forwards;
 }
+
+/* Standalone / Popup Mode Layout */
+body.standalone-mode {
+    background: #f1f5f9;
+}
+
+body.standalone-mode nav {
+    display: none !important;
+}
+
+body.standalone-mode main {
+    padding-left: 0 !important;
+}
+
+/* When logged in and in standalone mode, hide main background and show modal as full page */
+body.standalone-mode.logged-in main {
+    display: none !important;
+}
+
+body.standalone-mode.logged-in .modal-overlay {
+    position: fixed !important;
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: #f8fafc !important;
+    z-index: 1 !important;
+}
+
+body.standalone-mode.logged-in .modal-content {
+    width: 100% !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    padding: 3rem !important;
+    overflow-y: auto !important;
+}
+
+body.standalone-mode.logged-in .modal-controls #maximizeBtn {
+    display: none !important;
+}

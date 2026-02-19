@@ -90,6 +90,7 @@ const App = {
                 this.state.currentUser = JSON.parse(savedUser);
                 this.state.isLoggedIn = true;
                 this.state.currentRole = this.state.currentUser.role;
+                document.body.classList.add('logged-in');
             }
 
             // Load Settings
@@ -210,6 +211,12 @@ const App = {
 
         this.state.currentView = view;
         window.location.hash = view;
+
+        if (this.state.isLoggedIn) {
+            document.body.classList.add('logged-in');
+        } else {
+            document.body.classList.remove('logged-in');
+        }
 
         document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
         const navItem = document.querySelector(`[data-view="${view}"]`);
@@ -1141,11 +1148,13 @@ const App = {
                         env_info: data.env_info,
                         test_type: data.test_type
                     };
-                    console.log("[App] Pending defect data consumed from localStorage");
+                    console.log("[App] Pending defect data consumed. Screenshot length:", data.screenshot ? data.screenshot.length : 0);
                 } catch (e) {
                     console.error("[App] Failed to parse pending_defect:", e);
                     localStorage.removeItem('pending_defect');
                 }
+            } else {
+                console.log("[App] No pending_defect found in localStorage");
             }
         }
 

@@ -220,9 +220,11 @@
     </div>
     <div class="report-tooltip">발견한 결함 등록하기</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         async function openRegister() {
+            console.log("[TestBench] Starting capture sequence...");
+
             // 1. 화면 캡처 및 정보 수집 준비
             const btn = document.querySelector('.test-header .btn-primary');
             const originalText = btn.innerHTML;
@@ -243,34 +245,26 @@
                 return;
             }
 
-            // UI 안정화를 위한 충분한 대기
-            await new Promise(r => setTimeout(r, 300));
+            // UI 안정화를 위해 화면 상단으로 이동 후 대기
+            window.scrollTo(0, 0);
+            await new Promise(r => setTimeout(r, 500));
 
             let screenshot = '';
 
             // html2canvas 라이브러리 로드 확인
             if (typeof html2canvas !== 'undefined') {
                 try {
+                    console.log("[TestBench] Running html2canvas...");
                     const canvas = await html2canvas(document.body, {
-                        logging: false,
+                        logging: true,
                         useCORS: true,
                         allowTaint: false,
-                        scale: 1, // 스케일을 1로 고정하여 안정성 확보
-                        backgroundColor: '#f1f5f9',
-                        removeContainer: true,
-                        ignoreElements: (el) => {
-                            try {
-                                return el.classList && (
-                                    el.classList.contains('report-fab') ||
-                                    el.classList.contains('report-tooltip') ||
-                                    el.classList.contains('fa-spinner')
-                                );
-                            } catch (e) { return false; }
-                        }
+                        scale: 1,
+                        backgroundColor: '#f1f5f9'
                     });
 
-                    screenshot = canvas.toDataURL('image/jpeg', 0.5);
-                    console.log("[TestBench] Screen captured successfully.");
+                    screenshot = canvas.toDataURL('image/jpeg', 0.6);
+                    console.log("[TestBench] Screen captured successfully. Length:", screenshot.length);
                 } catch (err) {
                     console.error("[TestBench] Capture failed:", err);
                 }
@@ -293,9 +287,11 @@
                     test_type: '통합테스트'
                 };
 
+                console.log("[TestBench] Saving data to localStorage...");
                 localStorage.setItem('pending_defect', JSON.stringify(defectData));
 
                 // 3. 팝업의 주소를 실제 등록 화면으로 이동
+                console.log("[TestBench] Redirecting popup to register view...");
                 popup.location.href = '../index.html?mode=standalone#register';
 
             } catch (err) {
