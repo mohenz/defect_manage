@@ -21,7 +21,6 @@ DefectFlow는 웹 기반의 결함 관리 도구로, Supabase 백엔드를 사�
 - **결함 관리**: 검색, 필터링, 상세 정보 조회 및 수정.
 - **테스트 벤치 연동**: 외부 사이트 연동 위젯을 통한 결함 등록 및 화면 캡처 자동화.
 - **이미지 저장**: 결함 스크린샷의 Supabase Storage 업로드 및 보관.
-- **시간대 설정**: 한국 표준시(KST) 기준 데이터 처리.
 
 ---
 *Created and maintained by Antigravity AI Assistant.*

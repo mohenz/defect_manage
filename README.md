@@ -21,7 +21,6 @@ DefectFlow is a web-based defect management tool that uses Supabase for data man
 - **Defect Management**: Search, filter, view details, and edit defect reports.
 - **Test Bench Integration**: External site widget for defect registration and automated screen capture.
 - **Image Storage**: Defect screenshots are uploaded to Supabase Storage.
-- **Timezone**: Data processed according to Korean Standard Time (KST).
 
 ---
 *Created and maintained by Antigravity AI Assistant.*
