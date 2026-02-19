@@ -25,11 +25,65 @@ const StorageService = {
         return data;
     },
 
+    /**
+     * Helper: Convert DataURL (Base64) to Blob
+     */
+    dataURLtoBlob(dataurl) {
+        var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+            bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    },
+
+    /**
+     * Upload Image to Supabase Storage
+     */
+    async uploadImage(dataUrl, fileName) {
+        try {
+            const blob = this.dataURLtoBlob(dataUrl);
+            const ext = blob.type.split('/')[1] || 'png';
+            const path = `defect_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+
+            const { data, error } = await supabaseClient.storage
+                .from('defect-images')
+                .upload(path, blob, {
+                    contentType: blob.type,
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (error) throw error;
+
+            const { data: urlData } = supabaseClient.storage
+                .from('defect-images')
+                .getPublicUrl(data.path);
+
+            return urlData.publicUrl;
+        } catch (err) {
+            console.error("[Storage] Image upload failed:", err);
+            return null;
+        }
+    },
+
     async saveDefect(payload, id = null) {
         console.log(`[Storage] Saving defect (${id ? 'Update' : 'New'})...`, payload);
         const now = new Date().toISOString();
 
         try {
+            // If screenshot is a new DataURL (Base64), upload it to Storage first
+            if (payload.screenshot && payload.screenshot.startsWith('data:image')) {
+                console.log("[Storage] New image detected, uploading to Supabase Storage...");
+                const publicUrl = await this.uploadImage(payload.screenshot, `defect_${id || 'new'}`);
+                if (publicUrl) {
+                    payload.screenshot = publicUrl;
+                    console.log("[Storage] Image uploaded. URL:", publicUrl);
+                } else {
+                    console.warn("[Storage] Image upload failed, falling back to original payload (Base64 might be stored or image lost)");
+                }
+            }
+
             if (id) {
                 const { error } = await supabaseClient
                     .from('defects')
@@ -43,7 +97,7 @@ const StorageService = {
                 console.log("[Storage] Defect updated successfully.");
                 return true;
             } else {
-                // Ensure unique numeric ID if DB doesn't handle auto-increment
+                // Ensure unique numeric ID
                 const numericId = parseInt(payload.defect_id) || Date.now();
 
                 const { error } = await supabaseClient

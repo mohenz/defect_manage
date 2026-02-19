@@ -296,22 +296,43 @@ const App = {
     /**
      * Helper: Format UTC/ISO date string to Korean Standard Time (KST) display
      */
-    formatDateKST(isoString) {
+    /**
+     * Helper: Format UTC/ISO date string to Korean Standard Time (KST) display
+     */
+    formatDateKST(isoString, includeTime = true) {
         if (!isoString) return '-';
         try {
             const date = new Date(isoString);
-            return date.toLocaleString('ko-KR', {
+            const options = {
                 timeZone: 'Asia/Seoul',
                 year: 'numeric',
                 month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+                day: '2-digit'
+            };
+            if (includeTime) {
+                options.hour = '2-digit';
+                options.minute = '2-digit';
+                options.second = '2-digit';
+                options.hour12 = false;
+            }
+            return date.toLocaleString('ko-KR', options);
         } catch (e) {
             return isoString;
+        }
+    },
+
+    /**
+     * Helper: Get YYYY-MM-DD string in Korean Standard Time (KST)
+     */
+    getKSTDateString(isoString) {
+        if (!isoString) return '';
+        try {
+            const date = new Date(isoString);
+            const offset = 9 * 60; // KST is UTC+9
+            const kstDate = new Date(date.getTime() + (offset * 60 * 1000));
+            return kstDate.toISOString().split('T')[0];
+        } catch (e) {
+            return '';
         }
     },
 
@@ -473,10 +494,14 @@ const App = {
             let matchesDate = true;
             if (search.dateStart || search.dateEnd) {
                 const date = new Date(d.created_at);
-                if (search.dateStart && date < new Date(search.dateStart)) matchesDate = false;
+                if (search.dateStart) {
+                    const startDate = new Date(search.dateStart);
+                    startDate.setHours(0, 0, 0, 0); // Start of day KST
+                    if (date < startDate) matchesDate = false;
+                }
                 if (search.dateEnd) {
                     const endDate = new Date(search.dateEnd);
-                    endDate.setHours(23, 59, 59);
+                    endDate.setHours(23, 59, 59, 999); // End of day KST
                     if (date > endDate) matchesDate = false;
                 }
             }
@@ -594,7 +619,7 @@ const App = {
                                 <td>${this.sanitize(d.assignee || '-')}</td>
                                 <td>${this.formatDateKST(d.created_at)}</td>
                                 <td>${this.formatDateKST(d.updated_at)}</td>
-                                <td>${d.action_start ? new Date(d.action_start).toLocaleDateString() : '-'}<br>${d.action_end ? new Date(d.action_end).toLocaleDateString() : '-'}</td>
+                                <td>${this.formatDateKST(d.action_start, false)}<br>${this.formatDateKST(d.action_end, false)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
                                         <button class="btn" style="padding: 0.4rem; color: var(--info)" title="조치 결과 입력" onclick="App.actionDefect(${d.defect_id})"><i class="fas fa-tools"></i> 조치</button>
@@ -680,8 +705,8 @@ const App = {
                 `"${(d.screen_name || '').replace(/"/g, '""')}"`,
                 d.creator,
                 d.assignee || '',
-                new Date(d.created_at).toLocaleString(),
-                d.updated_at ? new Date(d.updated_at).toLocaleString() : ''
+                this.formatDateKST(d.created_at),
+                d.updated_at ? this.formatDateKST(d.updated_at) : ''
             ];
             csvRows.push(row.join(','));
         });
@@ -690,8 +715,9 @@ const App = {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
+        const kstDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace(/\./, '');
         link.setAttribute('href', url);
-        link.setAttribute('download', `defects_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `defects_export_${kstDate}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -722,9 +748,7 @@ const App = {
                         env_info: data.env_info,
                         test_type: data.test_type
                     };
-                    // Clear after use so it doesn't stick for the next manual "New" click
-                    localStorage.removeItem('pending_defect');
-                    console.log("[App] Pending defect data consumed and cleared from localStorage");
+                    console.log("[App] Pending defect data consumed from localStorage");
                 } catch (e) {
                     console.error("[App] Failed to parse pending_defect:", e);
                     localStorage.removeItem('pending_defect');
@@ -876,13 +900,13 @@ const App = {
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <div class="form-group">
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>조치 시작일</label>
-                                <input type="date" name="action_start" value="${item.action_start ? item.action_start.split('T')[0] : ''}">
+                                <input type="date" name="action_start" value="${this.getKSTDateString(item.action_start)}">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" style="margin-bottom: 0;">
                                 <label>조치 완료일</label>
-                                <input type="date" name="action_end" value="${item.action_end ? item.action_end.split('T')[0] : ''}">
+                                <input type="date" name="action_end" value="${this.getKSTDateString(item.action_end)}">
                             </div>
                         </div>
                     </div>
@@ -924,11 +948,11 @@ const App = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
                         <label>조치 시작일</label>
-                        <input type="date" name="action_start" value="${item.action_start ? item.action_start.split('T')[0] : ''}">
+                        <input type="date" name="action_start" value="${App.getKSTDateString(item.action_start)}">
                     </div>
                     <div class="form-group">
                         <label>조치 완료일</label>
-                        <input type="date" name="action_end" value="${item.action_end ? item.action_end.split('T')[0] : ''}">
+                        <input type="date" name="action_end" value="${App.getKSTDateString(item.action_end)}">
                     </div>
                 </div>
 
