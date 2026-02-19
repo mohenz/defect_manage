@@ -115,6 +115,11 @@ const App = {
                 const hash = window.location.hash.substring(1);
                 this.navigate(hash || 'dashboard');
             } else {
+                // Save intended hash for post-login redirect
+                const hash = window.location.hash.substring(1);
+                if (hash && hash !== 'login' && hash !== 'signup') {
+                    this.state.returnTo = hash;
+                }
                 this.navigate('login');
             }
 
@@ -187,7 +192,10 @@ const App = {
         }
 
         if (view === 'register') {
-            localStorage.removeItem('pending_defect');
+            // 외부 연동(Test Bench)인 경우 데이터를 유지하고, 일반 메뉴 클릭 시에만 초기화
+            if (!this.state.isStandalone) {
+                localStorage.removeItem('pending_defect');
+            }
             this.showRegisterModal();
             return;
         }
@@ -310,7 +318,9 @@ const App = {
                         localStorage.setItem('currentUser', JSON.stringify(user));
 
                         alert(`${user.name}님, 환영합니다!`);
-                        this.navigate('dashboard');
+                        const targetView = this.state.returnTo || 'dashboard';
+                        this.state.returnTo = null; // Clear it
+                        this.navigate(targetView);
                     } else {
                         alert('비밀번호가 일치하지 않습니다.');
                     }
