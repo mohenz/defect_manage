@@ -22,20 +22,24 @@
             </li>
             <li><a href="#" class="nav-item" data-view="list"><i class="fas fa-list-check"></i> 결함 목록</a></li>
             <li><a href="#" class="nav-item" data-view="register"><i class="fas fa-plus-circle"></i> 결함 등록</a></li>
-            <li><a href="#" class="nav-item" data-view="users"><i class="fas fa-users-cog"></i> 담당자 관리</a></li>
-            <li><a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> 설정</a></li>
+
+            <!-- 관리전용 메뉴 그룹 -->
+            <div id="adminOnlyMenus"
+                style="display: none; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1rem; padding-top: 1rem;">
+                <li><a href="#" class="nav-item" data-view="users"><i class="fas fa-users-cog"></i> 담당자 관리</a></li>
+                <li><a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> 설정</a></li>
+            </div>
         </ul>
 
-        <div style="margin-top: auto; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-            <label
-                style="color: var(--sidebar-text); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem; display: block;">현재
-                접속 권한</label>
-            <select id="roleSwitcher" onchange="App.state.currentRole = this.value; App.render();"
-                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); font-size: 0.8125rem; width: 100%; padding: 0.5rem; border-radius: 4px;">
-                <option value="테스터">테스터</option>
-                <option value="조치자">조치자</option>
-                <option value="관리자">관리자 (Admin)</option>
-            </select>
+        <div style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+            <a href="#" class="nav-item" id="adminLoginBtn" onclick="App.navigate('admin-login')"
+                style="background: rgba(255,255,255,0.05);">
+                <i class="fas fa-unlock-alt"></i> 관리자 로그인
+            </a>
+            <a href="#" class="nav-item" id="adminLogoutBtn" onclick="App.handleAdminLogout()"
+                style="display: none; background: rgba(239, 68, 68, 0.1); color: #fca5a5;">
+                <i class="fas fa-sign-out-alt"></i> 관리자 로그아웃
+            </a>
         </div>
     </nav>
 
