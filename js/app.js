@@ -462,15 +462,7 @@ const App = {
     formatDateKST(isoString, includeTime = true) {
         if (!isoString) return '-';
         try {
-            let dateStr = isoString;
-            // 타임존 식별자가 없는 경우 (ex: '2026-02-19 08:50:36') 
-            // 이를 UTC로 해석하도록 Z를 붙여줌. 단, 이미 타임존이 있으면 그대로 둠.
-            if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
-                dateStr = dateStr.trim().replace(' ', 'T') + 'Z';
-            }
-
-            const date = new Date(dateStr);
-            // 만약 유효하지 않은 날짜인 경우 원본 반환
+            const date = new Date(isoString);
             if (isNaN(date.getTime())) return isoString;
 
             const options = {
@@ -479,13 +471,15 @@ const App = {
                 month: '2-digit',
                 day: '2-digit'
             };
+
             if (includeTime) {
-                options.hour = '2-digit';
-                options.minute = '2-digit';
-                options.second = '2-digit';
-                options.hour12 = false;
+                options.hour = '2-digit',
+                    options.minute = '2-digit',
+                    options.second = '2-digit',
+                    options.hour12 = false
             }
-            return date.toLocaleString('ko-KR', options);
+
+            return new Intl.DateTimeFormat('ko-KR', options).format(date);
         } catch (e) {
             console.error("[formatDateKST Error]", e, isoString);
             return isoString;

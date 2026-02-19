@@ -7,10 +7,7 @@ const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABAS
 
 const StorageService = {
     /**
-     * Helper: Get KST ISO string with offset (+09:00)
-     */
-    /**
-     * Helper: Get standard UTC ISO string
+     * Helper: Get standard UTC ISO string for database storage
      */
     getISO() {
         return new Date().toISOString();
