@@ -462,7 +462,17 @@ const App = {
     formatDateKST(isoString, includeTime = true) {
         if (!isoString) return '-';
         try {
-            const date = new Date(isoString);
+            let dateStr = isoString;
+            // 타임존 식별자가 없는 경우 (ex: '2026-02-19 08:50:36') 
+            // 이를 UTC로 해석하도록 Z를 붙여줌. 단, 이미 타임존이 있으면 그대로 둠.
+            if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
+                dateStr = dateStr.replace(' ', 'T') + 'Z';
+            }
+
+            const date = new Date(dateStr);
+            // 만약 유효하지 않은 날짜인 경우 원본 반환
+            if (isNaN(date.getTime())) return isoString;
+
             const options = {
                 timeZone: 'Asia/Seoul',
                 year: 'numeric',
@@ -477,6 +487,7 @@ const App = {
             }
             return date.toLocaleString('ko-KR', options);
         } catch (e) {
+            console.error("[formatDateKST Error]", e, isoString);
             return isoString;
         }
     },
@@ -846,7 +857,7 @@ const App = {
                                 <td>${this.sanitize(d.creator || '-')}</td>
                                 <td>${this.sanitize(d.assignee || '-')}</td>
                                 <td>${this.formatDateKST(d.created_at)}</td>
-                                <td>${this.formatDateKST(d.updated_at)}</td>
+                                <td>${(d.updated_at && d.updated_at !== d.created_at) ? this.formatDateKST(d.updated_at) : '-'}</td>
                                 <td>${this.formatDateKST(d.action_start, false)}<br>${this.formatDateKST(d.action_end, false)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">

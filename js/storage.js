@@ -6,6 +6,17 @@ console.log("[Storage] Initializing Supabase Client with URL:", CONFIG.SUPABASE_
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 const StorageService = {
+    /**
+     * Helper: Get KST ISO string with offset (+09:00)
+     */
+    getKSTISO() {
+        const now = new Date();
+        const kstOffset = 9 * 60 * 60 * 1000;
+        const kstDate = new Date(now.getTime() + kstOffset);
+        // Returns "YYYY-MM-DDTHH:mm:ss.sss+09:00"
+        return kstDate.toISOString().replace('Z', '+09:00');
+    },
+
     init() {
         console.log("[Storage] StorageService ready.");
     },
@@ -69,7 +80,7 @@ const StorageService = {
 
     async saveDefect(payload, id = null) {
         console.log(`[Storage] Saving defect (${id ? 'Update' : 'New'})...`, payload);
-        const now = new Date().toISOString();
+        const now = this.getKSTISO();
 
         try {
             // If screenshot is a new DataURL (Base64), upload it to Storage first
@@ -107,7 +118,7 @@ const StorageService = {
                         defect_id: numericId,
                         status: payload.status || 'New',
                         created_at: now,
-                        updated_at: now
+                        updated_at: null
                     }]);
 
                 if (error) {
@@ -156,7 +167,7 @@ const StorageService = {
 
     async saveUser(payload, id = null) {
         console.log(`[Storage] Saving user (${id ? 'Update' : 'New'})...`, payload);
-        const now = new Date().toISOString();
+        const now = this.getKSTISO();
 
         if (id) {
             const { error } = await supabaseClient
@@ -176,7 +187,7 @@ const StorageService = {
                     user_id: numericId,
                     status: payload.status || '사용',
                     created_at: now,
-                    updated_at: now
+                    updated_at: null
                 }]);
 
             if (error) console.error("[Storage] Error inserting user:", error.message);
