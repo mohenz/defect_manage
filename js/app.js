@@ -2,6 +2,8 @@
  * DefectFlow Core Application Logic
  */
 
+const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
+
 const App = {
     state: {
         currentView: 'dashboard',
