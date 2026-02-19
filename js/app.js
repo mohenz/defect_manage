@@ -58,28 +58,45 @@ const App = {
     },
 
     init() {
-        StorageService.init();
-        this.bindEvents();
+        console.log("[App] Initializing...");
 
-        // Check for Standalone Mode (Popup)
-        const params = new URLSearchParams(window.location.search);
-        this.state.isStandalone = params.get('mode') === 'standalone';
+        // Global Error Logging
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("[Global Error]", { message, source, lineno, colno, error });
+        };
+        window.onunhandledrejection = function (event) {
+            console.error("[Unhandled Rejection]", event.reason);
+        };
 
-        if (this.state.isStandalone) {
-            document.body.classList.add('standalone-mode');
-        }
+        try {
+            StorageService.init();
+            console.log("[App] StorageService initialized");
+            this.bindEvents();
 
-        this.fetchData();
+            // Check for Standalone Mode (Popup)
+            const params = new URLSearchParams(window.location.search);
+            this.state.isStandalone = params.get('mode') === 'standalone';
 
-        // Handle standalone mode routing immediately if needed
-        if (this.state.isStandalone && !this.state.initialRouteHandled) {
-            const hash = window.location.hash.substring(1);
-            if (hash === 'register') {
-                this.state.initialRouteHandled = true;
-                this.showRegisterModal();
+            if (this.state.isStandalone) {
+                document.body.classList.add('standalone-mode');
+                console.log("[App] Running in standalone mode");
             }
+
+            this.fetchData();
+
+            // Handle standalone mode routing immediately if needed
+            if (this.state.isStandalone && !this.state.initialRouteHandled) {
+                const hash = window.location.hash.substring(1);
+                if (hash === 'register') {
+                    this.state.initialRouteHandled = true;
+                    this.showRegisterModal();
+                }
+            }
+            this.render();
+            console.log("[App] Initialization complete");
+        } catch (err) {
+            console.error("[App] Init failed:", err);
         }
-        this.render();
     },
 
     bindEvents() {
@@ -93,27 +110,34 @@ const App = {
     },
 
     async fetchData() {
-        this.state.defects = await StorageService.getDefects();
-        this.state.users = await StorageService.getUsers();
-        this.calculateStats();
-        this.render();
+        console.log("[App] Fetching data from Supabase...");
+        try {
+            this.state.defects = await StorageService.getDefects();
+            this.state.users = await StorageService.getUsers();
+            console.log(`[App] Data loaded. Defects: ${this.state.defects.length}, Users: ${this.state.users.length}`);
 
-        // Handle initial routing after data is ready (if not already handled)
-        if (!this.state.initialRouteHandled) {
-            const hash = window.location.hash.substring(1);
-            if (hash === 'register') {
-                this.showRegisterModal();
-            } else if (['dashboard', 'list', 'users'].includes(hash)) {
-                this.navigate(hash);
+            this.calculateStats();
+            this.render();
+
+            // Handle initial routing after data is ready (if not already handled)
+            if (!this.state.initialRouteHandled) {
+                const hash = window.location.hash.substring(1);
+                if (hash === 'register') {
+                    this.showRegisterModal();
+                } else if (['dashboard', 'list', 'users'].includes(hash)) {
+                    this.navigate(hash);
+                }
+                this.state.initialRouteHandled = true;
             }
-            this.state.initialRouteHandled = true;
-        }
 
-        // Re-render modal if open to populate data (like users list)
-        if (this.state.currentModal === 'register') {
-            this.showRegisterModal();
-        } else if (this.state.currentModal === 'edit') {
-            this.editDefect(this.state.editingId);
+            // Re-render modal if open to populate data (like users list)
+            if (this.state.currentModal === 'register') {
+                this.showRegisterModal();
+            } else if (this.state.currentModal === 'edit') {
+                this.editDefect(this.state.editingId);
+            }
+        } catch (err) {
+            console.error("[App] FetchData failed:", err);
         }
     },
 
