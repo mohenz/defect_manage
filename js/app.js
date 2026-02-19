@@ -24,7 +24,15 @@ const App = {
                 dateStart: '',
                 dateEnd: ''
             }
+        },
+        settings: {
+            enabledTestTypes: ['선오픈', '통합테스트', '단위테스트']
         }
+    },
+
+    getFilteredDefects() {
+        const types = this.state.settings.enabledTestTypes;
+        return this.state.defects.filter(d => types.includes(d.test_type || '단위테스트'));
     },
 
     handleImageUpload(input) {
@@ -72,6 +80,13 @@ const App = {
         try {
             StorageService.init();
             console.log("[App] StorageService initialized");
+
+            // Load Settings
+            const savedSettings = localStorage.getItem('app_settings');
+            if (savedSettings) {
+                this.state.settings = { ...this.state.settings, ...JSON.parse(savedSettings) };
+            }
+
             this.bindEvents();
 
             // Check for Standalone Mode (Popup)
@@ -143,7 +158,7 @@ const App = {
     },
 
     calculateStats() {
-        const d = this.state.defects;
+        const d = this.getFilteredDefects();
         this.state.stats = {
             total: d.length,
             open: d.filter(x => ['New', 'Open', 'In Progress', 'Reopened'].includes(x.status)).length,
@@ -172,6 +187,7 @@ const App = {
             case 'dashboard': this.renderDashboard(root); break;
             case 'list': this.renderList(root); break;
             case 'users': this.renderUsers(root); break;
+            case 'settings': this.renderSettings(root); break;
         }
     },
 
@@ -287,6 +303,62 @@ const App = {
         }
     },
 
+    renderSettings(container) {
+        const types = ['선오픈', '통합테스트', '단위테스트'];
+        const enabled = this.state.settings.enabledTestTypes;
+
+        container.innerHTML = `
+            <header class="animate-in">
+                <div>
+                    <h1>환경 설정</h1>
+                    <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
+                </div>
+            </header>
+
+            <div class="form-container animate-in" style="max-width: 600px;">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">
+                    대시보드, 목록, 등록 화면에서 노출하고 관리할 테스트 단계를 선택하세요.
+                </p>
+                
+                <form id="settingsForm">
+                    <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                        ${types.map(t => `
+                            <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: 0.5rem; border-radius: 0.4rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" name="testTypes" value="${t}" ${enabled.includes(t) ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                                <span style="font-weight: 500;">${t}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top: 2rem;">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('settingsForm').onsubmit = (e) => {
+            e.preventDefault();
+            const checked = Array.from(e.target.querySelectorAll('input[name="testTypes"]:checked')).map(i => i.value);
+            if (checked.length === 0) {
+                alert('최소 하나 이상의 테스트 구분을 선택해야 합니다.');
+                return;
+            }
+            this.updateSettings({ enabledTestTypes: checked });
+        };
+    },
+
+    updateSettings(newSettings) {
+        this.state.settings = { ...this.state.settings, ...newSettings };
+        localStorage.setItem('app_settings', JSON.stringify(this.state.settings));
+
+        // Refresh data and re-render
+        this.calculateStats();
+        alert('설정이 저장되었습니다.');
+        this.render();
+    },
+
     async deleteUser(id) {
         if (!confirm('해당 담당자를 삭제하시겠습니까?')) return;
         if (await StorageService.deleteUser(id)) {
@@ -339,6 +411,7 @@ const App = {
 
     renderDashboard(container) {
         const stats = this.state.stats;
+        const defects = this.getFilteredDefects();
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -395,7 +468,7 @@ const App = {
                             </tr>
                         </thead>
                         <tbody>
-                            ${this.state.defects
+                            ${defects
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                 .slice(0, 20)
                 .map(d => `
@@ -421,7 +494,7 @@ const App = {
             'New': '신규', 'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Verified': '검증 완료', 'Closed': '종료', 'Reopened': '재오픈'
         };
         let totalDefects = 0;
-        this.state.defects.forEach(d => {
+        defects.forEach(d => {
             if (statusCounts[d.status] !== undefined) {
                 statusCounts[d.status]++;
                 totalDefects++;
@@ -489,8 +562,11 @@ const App = {
         }
 
         // Test Type Chart
-        const typeCounts = { '선오픈': 0, '통합테스트': 0, '단위테스트': 0 };
-        this.state.defects.forEach(d => {
+        const enabledTypes = this.state.settings.enabledTestTypes;
+        const typeCounts = {};
+        enabledTypes.forEach(t => typeCounts[t] = 0);
+
+        defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (typeCounts[type] !== undefined) typeCounts[type]++;
         });
@@ -509,8 +585,8 @@ const App = {
                         return {
                             label: type,
                             data: [percentage],
-                            backgroundColor: colors[index] + 'a0',
-                            borderColor: colors[index],
+                            backgroundColor: (colors[index] || '#64748b') + 'a0',
+                            borderColor: (colors[index] || '#64748b'),
                             borderWidth: 1,
                             count: count
                         };
@@ -540,9 +616,10 @@ const App = {
     renderList(container) {
         const config = this.state.listConfig;
         const search = config.search;
+        const defects = this.getFilteredDefects();
 
         // Filtering logic
-        let filtered = this.state.defects.filter(d => {
+        let filtered = defects.filter(d => {
             const matchesSeverity = !search.severity || d.severity === search.severity;
             const matchesStatus = !search.status || d.status === search.status;
             const matchesCreator = !search.creator || d.creator.includes(search.creator);
@@ -614,9 +691,9 @@ const App = {
                         <label style="font-size: 0.75rem;">테스트 구분</label>
                         <select id="searchTestType" onchange="App.handleSearchChange()">
                             <option value="">전체</option>
-                            <option value="선오픈" ${search.testType === '선오픈' ? 'selected' : ''}>선오픈</option>
-                            <option value="통합테스트" ${search.testType === '통합테스트' ? 'selected' : ''}>통합테스트</option>
-                            <option value="단위테스트" ${search.testType === '단위테스트' ? 'selected' : ''}>단위테스트</option>
+                            ${this.state.settings.enabledTestTypes.map(t => `
+                                <option value="${t}" ${search.testType === t ? 'selected' : ''}>${t}</option>
+                            `).join('')}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
@@ -838,9 +915,9 @@ const App = {
                     <div class="form-group">
                         <label>테스트 구분</label>
                         <select name="test_type">
-                            <option value="선오픈" ${item.test_type === '선오픈' ? 'selected' : ''}>선오픈</option>
-                            <option value="통합테스트" ${item.test_type === '통합테스트' ? 'selected' : ''}>통합테스트</option>
-                            <option value="단위테스트" ${(!item.test_type || item.test_type === '단위테스트') ? 'selected' : ''}>단위테스트</option>
+                            ${this.state.settings.enabledTestTypes.map(t => `
+                                <option value="${t}" ${item.test_type === t ? 'selected' : ((!item.test_type && t === '단위테스트') ? 'selected' : '')}>${t}</option>
+                            `).join('')}
                         </select>
                     </div>
 
