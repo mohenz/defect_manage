@@ -769,8 +769,9 @@ const App = {
                     <div class="form-group">
                         <label>테스트 구분</label>
                         <select name="test_type">
-                            <option value="단위테스트" ${(!item.test_type || item.test_type === '단위테스트') ? 'selected' : ''}>단위테스트</option>
+                            <option value="선오픈" ${item.test_type === '선오픈' ? 'selected' : ''}>선오픈</option>
                             <option value="통합테스트" ${item.test_type === '통합테스트' ? 'selected' : ''}>통합테스트</option>
+                            <option value="단위테스트" ${(!item.test_type || item.test_type === '단위테스트') ? 'selected' : ''}>단위테스트</option>
                         </select>
                     </div>
 
