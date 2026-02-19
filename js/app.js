@@ -207,7 +207,7 @@ const App = {
                                 <td><strong>${this.sanitize(u.name)}</strong></td>
                                 <td>${this.sanitize(u.email)}</td>
                                 <td><span class="badge" style="background: ${u.status === '사용' ? '#dcfce7' : '#fee2e2'}; color: ${u.status === '사용' ? '#166534' : '#991b1b'};">${u.status}</span></td>
-                                <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
+                                <td>${this.formatDateKST(u.created_at)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
                                         <button class="btn" style="padding: 0.4rem; color: var(--accent)" onclick="App.renderUserForm(${u.user_id})"><i class="fas fa-edit"></i></button>
@@ -292,6 +292,28 @@ const App = {
         this.fetchData();
     },
 
+    /**
+     * Helper: Format UTC/ISO date string to Korean Standard Time (KST) display
+     */
+    formatDateKST(isoString) {
+        if (!isoString) return '-';
+        try {
+            const date = new Date(isoString);
+            return date.toLocaleString('ko-KR', {
+                timeZone: 'Asia/Seoul',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        } catch (e) {
+            return isoString;
+        }
+    },
+
     renderDashboard(container) {
         const stats = this.state.stats;
         container.innerHTML = `
@@ -351,7 +373,7 @@ const App = {
                                     <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
                                     <td>${d.status}</td>
                                     <td>${this.sanitize(d.creator)}</td>
-                                    <td>${new Date(d.created_at).toLocaleDateString()}</td>
+                                    <td>${this.formatDateKST(d.created_at)}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="5" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
                         </tbody>
@@ -569,8 +591,8 @@ const App = {
                                 <td>${this.sanitize(d.menu_name || '-')}/${this.sanitize(d.screen_name || '-')}</td>
                                 <td>${this.sanitize(d.creator || '-')}</td>
                                 <td>${this.sanitize(d.assignee || '-')}</td>
-                                <td>${d.created_at ? new Date(d.created_at).toLocaleString() : '-'}</td>
-                                <td>${d.updated_at ? new Date(d.updated_at).toLocaleString() : '-'}</td>
+                                <td>${this.formatDateKST(d.created_at)}</td>
+                                <td>${this.formatDateKST(d.updated_at)}</td>
                                 <td>${d.action_start ? new Date(d.action_start).toLocaleDateString() : '-'}<br>${d.action_end ? new Date(d.action_end).toLocaleDateString() : '-'}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
