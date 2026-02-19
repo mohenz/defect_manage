@@ -1,32 +1,27 @@
-# 🐛 DefectFlow - Premium Defect Management System
+# 🐛 DefectFlow - Defect Management System
 
-**Version**: 2.0.0 (Cloud Native)  
-**Focus**: Security, Real-time Data Sync, and Enterprise Workflow
+**Version**: 2.0.0  
+**Focus**: Data Synchronization and Defect Management Workflow
 
-DefectFlow is a high-performance, premium defect management system designed for professional QA teams. It combines the simplicity of a Single Page Application (SPA) with the power of Supabase cloud backend.
+DefectFlow is a web-based defect management tool that uses Supabase for data management.
 
-## 📁 Architecture & Tech Stack
-- **Frontend**: Single Page Application (HTML5, Vanilla JS, Premium CSS3)
-- **Backend (BaaS)**: [Supabase](https://supabase.com/) (Authentication, PostgreSQL, Storage)
-- **Encryption**: Client-side BCrypt (via `bcryptjs`) for enterprise-grade security.
-- **Integration**: Real-time screen capture widget using `html2canvas`.
+## 📁 Tech Stack
+- **Frontend**: HTML, JavaScript (Vanilla), CSS
+- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL, Auth, Storage)
+- **Encryption**: `bcryptjs` (Password hashing)
+- **Additional Libraries**: `html2canvas` (Screen capture)
 
 ## 🛡 Security & Authentication
-- **Secure Login**: Mandatory authentication for all views.
-- **Password Protection**: Passwords are never stored or transmitted in plain text.
-- **Session Management**: Persistent sessions via LocalStorage with auto-redirect back to intended pages.
-- **Role-Based Access**: Specialized views for Testers, Actioners, and Administrators.
+- **Login Service**: Authentication required for system access.
+- **Password Management**: Client-side hashing used for transmission and storage.
+- **Role Management**: Access control based on user roles (Tester, Actioner, Admin).
 
 ## 🚀 Key Features
-- **Smart Dashboard**: Insightful charts and real-time statistics of defect status.
-- **Test Bench Integration**: A dedicated sandbox mall for defect reproduction and one-click reporting.
-- **Storage Sync**: Defect screenshots are automatically uploaded to Supabase Storage for durability.
-- **KST Support**: All timestamps are automatically handled in Korean Standard Time (UTC+9).
-
-## 🛠 Project Standards (Smart Working)
-1. **Deep Impact Analysis**: Every modification is validated against global project side-effects.
-2. **Proactive Debugging**: Potential library or environment errors are identified and fixed preemptively.
-3. **'First-Time-Right'**: We aim for perfect results on the first deployment, respect for the user's time.
+- **Dashboard**: Displays defect statistics and status charts.
+- **Defect Management**: Search, filter, view details, and edit defect reports.
+- **Test Bench Integration**: External site widget for defect registration and automated screen capture.
+- **Image Storage**: Defect screenshots are uploaded to Supabase Storage.
+- **Timezone**: Data processed according to Korean Standard Time (KST).
 
 ---
 *Created and maintained by Antigravity AI Assistant.*
