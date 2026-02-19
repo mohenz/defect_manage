@@ -448,9 +448,9 @@ const App = {
                     </div>
                 </div>
                 <div class="form-container animate-in" style="max-width: 100%;">
-                    <h2 style="margin-bottom: 1.5rem;">테스트 구분별 비중</h2>
+                    <h2 style="margin-bottom: 1.5rem;">심각도별 비중</h2>
                     <div style="height: 100px;">
-                        <canvas id="testTypeChart"></canvas>
+                        <canvas id="severityChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -562,32 +562,29 @@ const App = {
             });
         }
 
-        // Test Type Chart
-        const enabledTypes = this.state.settings.enabledTestTypes;
-        const typeCounts = {};
-        enabledTypes.forEach(t => typeCounts[t] = 0);
-
+        // Severity Chart
+        const severityCounts = { 'Critical': 0, 'Major': 0, 'Minor': 0, 'Simple': 0 };
         defects.forEach(d => {
-            const type = d.test_type || '단위테스트';
-            if (typeCounts[type] !== undefined) typeCounts[type]++;
+            if (severityCounts[d.severity] !== undefined) severityCounts[d.severity]++;
+            else severityCounts['Minor']++; // Default fallback
         });
 
-        const ctxType = document.getElementById('testTypeChart');
-        if (ctxType) {
-            new Chart(ctxType, {
+        const ctxSeverity = document.getElementById('severityChart');
+        if (ctxSeverity) {
+            new Chart(ctxSeverity, {
                 type: 'bar',
                 data: {
                     labels: ['전체'],
-                    datasets: Object.keys(typeCounts).map((type, index) => {
-                        const count = typeCounts[type];
+                    datasets: Object.keys(severityCounts).map((sev, index) => {
+                        const count = severityCounts[sev];
                         const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
-                        const colors = ['#ec4899', '#8b5cf6', '#3b82f6'];
+                        const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
 
                         return {
-                            label: type,
+                            label: sev,
                             data: [percentage],
-                            backgroundColor: (colors[index] || '#64748b') + 'a0',
-                            borderColor: (colors[index] || '#64748b'),
+                            backgroundColor: colors[index] + 'a0',
+                            borderColor: colors[index],
                             borderWidth: 1,
                             count: count
                         };
