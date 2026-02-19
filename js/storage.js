@@ -194,6 +194,19 @@ const StorageService = {
         }
     },
 
+    async findUserByEmail(email) {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+            console.error("[Storage] Error finding user:", error.message);
+        }
+        return data;
+    },
+
     async deleteUser(id) {
         console.log(`[Storage] Deleting user #${id}...`);
         const { error } = await supabaseClient

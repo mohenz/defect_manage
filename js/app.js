@@ -11,7 +11,8 @@ const App = {
         initialRouteHandled: false,
         currentModal: null, // 'register', 'edit', 'action'
         isStandalone: false,
-        isAdminLoggedIn: false,
+        isLoggedIn: false,
+        currentUser: null,
         currentRole: '테스터', // '테스터', '조치자', '관리자'
         listConfig: {
             page: 1,
@@ -80,7 +81,14 @@ const App = {
 
         try {
             StorageService.init();
-            console.log("[App] StorageService initialized");
+
+            // 1. Session Check
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                this.state.currentUser = JSON.parse(savedUser);
+                this.state.isLoggedIn = true;
+                this.state.currentRole = this.state.currentUser.role;
+            }
 
             // Load Settings
             const savedSettings = localStorage.getItem('app_settings');
@@ -96,20 +104,18 @@ const App = {
 
             if (this.state.isStandalone) {
                 document.body.classList.add('standalone-mode');
-                console.log("[App] Running in standalone mode");
             }
 
             await this.fetchData();
 
-            // Handle standalone mode routing immediately if needed
-            if (this.state.isStandalone && !this.state.initialRouteHandled) {
+            // Handle Initial Routing
+            if (this.state.isLoggedIn) {
                 const hash = window.location.hash.substring(1);
-                if (hash === 'register') {
-                    this.state.initialRouteHandled = true;
-                    this.showRegisterModal();
-                }
+                this.navigate(hash || 'dashboard');
+            } else {
+                this.navigate('login');
             }
-            this.render();
+
             console.log("[App] Initialization complete");
         } catch (err) {
             console.error("[App] Init failed:", err);
@@ -169,10 +175,15 @@ const App = {
     },
 
     navigate(view) {
-        if (!view) {
-            console.warn("[App] navigate called with null/undefined view, defaulting to dashboard");
-            view = 'dashboard';
+        if (!view) view = 'dashboard';
+
+        // Authentication Guard
+        if (!this.state.isLoggedIn && view !== 'login' && view !== 'signup') {
+            this.state.currentView = 'login';
+            this.render();
+            return;
         }
+
         if (view === 'register') {
             localStorage.removeItem('pending_defect');
             this.showRegisterModal();
@@ -181,13 +192,15 @@ const App = {
 
         // Admin view check
         const adminViews = ['users', 'settings'];
-        if (adminViews.includes(view) && !this.state.isAdminLoggedIn) {
-            alert('관리자 권한이 필요한 메뉴입니다. 먼저 로그인해 주세요.');
-            this.navigate('admin-login');
+        if (adminViews.includes(view) && this.state.currentRole !== '관리자') {
+            alert('관리자 권한이 필요한 메뉴입니다.');
+            this.navigate('dashboard');
             return;
         }
 
         this.state.currentView = view;
+        window.location.hash = view;
+
         document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
         const navItem = document.querySelector(`[data-view="${view}"]`);
         if (navItem) navItem.classList.add('active');
@@ -201,80 +214,197 @@ const App = {
         // Sidebar Visibility Check
         this.updateSidebar();
 
-        // Safety redirect if current view is restricted
-        const adminViews = ['users', 'settings'];
-        if (adminViews.includes(this.state.currentView) && !this.state.isAdminLoggedIn) {
-            this.state.currentView = 'dashboard';
-        }
-
         switch (this.state.currentView) {
             case 'dashboard': this.renderDashboard(root); break;
             case 'list': this.renderList(root); break;
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
-            case 'admin-login': this.renderAdminLogin(root); break;
+            case 'login': this.renderLogin(root); break;
+            case 'signup': this.renderSignup(root); break;
         }
     },
 
     updateSidebar() {
-        const loggedIn = this.state.isAdminLoggedIn;
+        const loggedIn = this.state.isLoggedIn;
+        const user = this.state.currentUser;
 
+        // Admin Menus
         const adminMenu = document.getElementById('adminOnlyMenus');
-        const loginBtn = document.getElementById('adminLoginBtn');
-        const logoutBtn = document.getElementById('adminLogoutBtn');
+        if (adminMenu) {
+            adminMenu.style.display = (loggedIn && user.role === '관리자') ? 'block' : 'none';
+        }
 
-        if (adminMenu) adminMenu.style.display = loggedIn ? 'block' : 'none';
-        if (loginBtn) loginBtn.style.display = loggedIn ? 'none' : 'flex';
-        if (logoutBtn) logoutBtn.style.display = loggedIn ? 'flex' : 'none';
+        // Login/User Section
+        const userSection = document.getElementById('userSection');
+        const loginPrompt = document.getElementById('loginPrompt');
 
-        this.state.currentRole = loggedIn ? '관리자' : '테스터';
+        if (loggedIn && user) {
+            if (userSection) userSection.style.display = 'block';
+            if (loginPrompt) loginPrompt.style.display = 'none';
+
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userRole').textContent = user.role;
+            document.getElementById('userAvatar').textContent = user.name.substring(0, 1);
+        } else {
+            if (userSection) userSection.style.display = 'none';
+            if (loginPrompt) loginPrompt.style.display = 'block';
+        }
+
+        // Hide Sidebar entirely on Login/Signup pages
+        const nav = document.querySelector('nav');
+        const isAuthPage = ['login', 'signup'].includes(this.state.currentView);
+        if (nav) nav.style.display = isAuthPage ? 'none' : 'flex';
+        document.getElementById('app').style.marginLeft = isAuthPage ? '0' : '260px';
     },
 
-    renderAdminLogin(container) {
+    renderLogin(container) {
         container.innerHTML = `
-            <header class="animate-in">
-                <div>
-                    <h1>관리자 모드 접속</h1>
-                    <p class="subtitle">시스템 설정을 변경하려면 관리자 인증이 필요합니다.</p>
-                </div>
-            </header>
-
-            <div class="form-container animate-in" style="max-width: 400px; margin: 4rem auto;">
-                <div style="text-align: center; margin-bottom: 2rem;">
-                    <i class="fas fa-user-shield" style="font-size: 3rem; color: var(--accent); margin-bottom: 1rem;"></i>
-                    <h2>인증 필요</h2>
-                </div>
-                <form id="adminLoginForm">
-                    <div class="form-group">
-                        <label>관리자 비밀번호</label>
-                        <input type="password" id="adminPassword" placeholder="비밀번호를 입력하세요" required style="text-align: center; font-size: 1.2rem; letter-spacing: 0.5rem;">
+            <div class="login-screen animate-in">
+                <div class="login-card">
+                    <div class="login-logo">
+                        <i class="fas fa-bug"></i> Defect Manage
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; justify-content: center;">접속하기</button>
-                    <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem; background: transparent; justify-content: center;" onclick="App.navigate('dashboard')">취소</button>
-                </form>
+                    <h2>환영합니다</h2>
+                    <p class="subtitle">시스템 접속을 위해 로그인해 주세요.</p>
+                    
+                    <form id="loginForm" style="margin-top: 2rem;">
+                        <div class="form-group">
+                            <label>이메일</label>
+                            <input type="email" id="loginEmail" required placeholder="example@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label>비밀번호</label>
+                            <input type="password" id="loginPassword" required placeholder="비밀번호를 입력하세요">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">로그인</button>
+                    </form>
+                    
+                    <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
+                        계정이 없으신가요? <a href="#" onclick="App.navigate('signup')" style="color: var(--accent); font-weight: 600;">회원가입</a>
+                    </div>
+                </div>
             </div>
         `;
 
-        document.getElementById('adminLoginForm').onsubmit = (e) => {
+        document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
-            const pw = document.getElementById('adminPassword').value;
-            if (pw === 'admin1234') {
-                this.state.isAdminLoggedIn = true;
-                this.state.currentRole = '관리자';
-                alert('관리자 모드로 전환되었습니다.');
-                this.navigate('dashboard');
-            } else {
-                alert('비밀번호가 일치하지 않습니다.');
-                document.getElementById('adminPassword').value = '';
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const user = await StorageService.findUserByEmail(email);
+                if (user) {
+                    if (user.status === '사용중지') {
+                        alert('비활성화된 계정입니다. 관리자에게 문의하세요.');
+                        return;
+                    }
+
+                    // Check Password (Client-side)
+                    const isMatch = bcrypt.compareSync(password, user.password);
+                    if (isMatch) {
+                        this.state.isLoggedIn = true;
+                        this.state.currentUser = user;
+                        this.state.currentRole = user.role;
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+
+                        alert(`${user.name}님, 환영합니다!`);
+                        this.navigate('dashboard');
+                    } else {
+                        alert('비밀번호가 일치하지 않습니다.');
+                    }
+                } else {
+                    alert('등록되지 않은 이메일입니다.');
+                }
+            } catch (err) {
+                console.error("Login error:", err);
+                alert('로그인 중 오류가 발생했습니다.');
             }
         };
     },
-    handleAdminLogout() {
-        if (confirm('관리자 모드에서 로그아웃 하시겠습니까?')) {
-            this.state.isAdminLoggedIn = false;
+
+    renderSignup(container) {
+        container.innerHTML = `
+            <div class="login-screen animate-in">
+                <div class="login-card">
+                    <div class="login-logo">
+                        <i class="fas fa-user-plus"></i> 계정 생성
+                    </div>
+                    <h2>회원가입</h2>
+                    <p class="subtitle">결함 시스템 사용을 위해 계정을 생성합니다.</p>
+                    
+                    <form id="signupForm" style="margin-top: 2rem;">
+                        <div class="form-group">
+                            <label>성함 (필수)</label>
+                            <input type="text" id="signupName" required placeholder="홍길동">
+                        </div>
+                        <div class="form-group">
+                            <label>이메일 (필수)</label>
+                            <input type="email" id="signupEmail" required placeholder="example@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label>비밀번호 (필수)</label>
+                            <input type="password" id="signupPassword" required placeholder="6자 이상 입력">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">가입 완료</button>
+                    </form>
+                    
+                    <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
+                        이미 계정이 있으신가요? <a href="#" onclick="App.navigate('login')" style="color: var(--accent); font-weight: 600;">로그인</a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('signupForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            if (password.length < 6) {
+                alert('비밀번호는 6자 이상이어야 합니다.');
+                return;
+            }
+
+            try {
+                // Check if exists
+                const existing = await StorageService.findUserByEmail(email);
+                if (existing) {
+                    alert('이미 등록된 이메일입니다.');
+                    return;
+                }
+
+                // Hash Password
+                const salt = bcrypt.genSaltSync(10);
+                const hashedPassword = bcrypt.hashSync(password, salt);
+
+                const success = await StorageService.saveUser({
+                    name,
+                    email,
+                    password: hashedPassword,
+                    role: '테스터',
+                    department: '미지정',
+                    status: '사용'
+                });
+
+                if (success) {
+                    alert('회원가입이 완료되었습니다. 로그인해 주세요.');
+                    this.navigate('login');
+                }
+            } catch (err) {
+                console.error("Signup error:", err);
+                alert('가입 중 오류가 발생했습니다.');
+            }
+        };
+    },
+
+    handleLogout() {
+        if (confirm('로그아웃 하시겠습니까?')) {
+            this.state.isLoggedIn = false;
+            this.state.currentUser = null;
             this.state.currentRole = '테스터';
-            alert('로그아웃 되었습니다.');
-            this.navigate('dashboard');
+            localStorage.removeItem('currentUser');
+            this.navigate('login');
         }
     },
 
@@ -1049,7 +1179,7 @@ const App = {
                             <select name="creator" required>
                                 <option value="">선택하세요</option>
                                 ${this.state.users.filter(u => u.status === '사용').map(u => `
-                                    <option value="${this.sanitize(u.name)}" ${item.creator === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
+                                    <option value="${this.sanitize(u.name)}" ${(item.creator || this.state.currentUser.name) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
                         </div>
@@ -1173,7 +1303,7 @@ const App = {
             <form id="actionForm">
                 <div class="form-group">
                     <label>조치자 (Assignee)</label>
-                    <input type="text" name="assignee" value="${this.sanitize(item.assignee || '')}" required placeholder="조치 담당자 이름을 입력하세요">
+                    <input type="text" name="assignee" value="${this.sanitize(item.assignee || this.state.currentUser.name)}" required placeholder="조치 담당자 이름을 입력하세요">
                 </div>
 
                 <div class="form-group">

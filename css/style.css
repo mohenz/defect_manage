@@ -411,6 +411,51 @@ body.standalone-mode .modal-controls .fas-expand-alt {
     text-decoration: underline;
 }
 
+/* Login Screen Styles */
+.login-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.login-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 1.5rem;
+    width: 420px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.login-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--sidebar-bg);
+    margin-bottom: 1.5rem;
+}
+
+.login-card h2 {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.login-card .subtitle {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
@@ -425,5 +470,5 @@ body.standalone-mode .modal-controls .fas-expand-alt {
 }
 
 .animate-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 0.4s ease-out forwards;
 }
