@@ -92,9 +92,9 @@ const App = {
         });
     },
 
-    fetchData() {
-        this.state.defects = StorageService.getDefects();
-        this.state.users = StorageService.getUsers();
+    async fetchData() {
+        this.state.defects = await StorageService.getDefects();
+        this.state.users = await StorageService.getUsers();
         this.calculateStats();
         this.render();
 
