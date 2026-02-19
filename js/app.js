@@ -343,11 +343,24 @@ const App = {
                             <label>이메일 (필수)</label>
                             <input type="email" id="signupEmail" required placeholder="example@company.com">
                         </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>소속 (필수)</label>
+                                <input type="text" id="signupDept" required placeholder="예: QA팀">
+                            </div>
+                            <div class="form-group">
+                                <label>역할 (필수)</label>
+                                <select id="signupRole" required>
+                                    <option value="테스터">테스터</option>
+                                    <option value="조치자">조치자</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label>비밀번호 (필수)</label>
                             <input type="password" id="signupPassword" required placeholder="6자 이상 입력">
                         </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">가입 완료</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem; padding: 0.8rem;">가입 완료</button>
                     </form>
                     
                     <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
@@ -361,6 +374,8 @@ const App = {
             e.preventDefault();
             const name = document.getElementById('signupName').value;
             const email = document.getElementById('signupEmail').value;
+            const department = document.getElementById('signupDept').value;
+            const role = document.getElementById('signupRole').value;
             const password = document.getElementById('signupPassword').value;
 
             if (password.length < 6) {
@@ -383,10 +398,11 @@ const App = {
                 const success = await StorageService.saveUser({
                     name,
                     email,
+                    department,
+                    role,
                     password: hashedPassword,
-                    role: '테스터',
-                    department: '미지정',
-                    status: '사용'
+                    status: '사용',
+                    needs_password_reset: false
                 });
 
                 if (success) {
