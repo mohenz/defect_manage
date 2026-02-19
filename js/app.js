@@ -462,7 +462,9 @@ const App = {
     formatDateKST(isoString, includeTime = true) {
         if (!isoString) return '-';
         try {
+            // DB 설정이 Asia/Seoul이므로 넘어오는 시각을 그대로 파싱합니다.
             const date = new Date(isoString);
+            // 만약 유효하지 않은 날짜인 경우 원본 반환
             if (isNaN(date.getTime())) return isoString;
 
             const options = {
@@ -471,15 +473,13 @@ const App = {
                 month: '2-digit',
                 day: '2-digit'
             };
-
             if (includeTime) {
-                options.hour = '2-digit',
-                    options.minute = '2-digit',
-                    options.second = '2-digit',
-                    options.hour12 = false
+                options.hour = '2-digit';
+                options.minute = '2-digit';
+                options.second = '2-digit';
+                options.hour12 = false;
             }
-
-            return new Intl.DateTimeFormat('ko-KR', options).format(date);
+            return date.toLocaleString('ko-KR', options);
         } catch (e) {
             console.error("[formatDateKST Error]", e, isoString);
             return isoString;

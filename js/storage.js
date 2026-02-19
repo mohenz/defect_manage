@@ -7,10 +7,12 @@ const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABAS
 
 const StorageService = {
     /**
-     * Helper: Get standard UTC ISO string for database storage
+     * Helper: Get local ISO-like string for database storage (matching Asia/Seoul DB)
      */
     getISO() {
-        return new Date().toISOString();
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        return new Date(now.getTime() - offset).toISOString().slice(0, -1);
     },
 
     init() {
