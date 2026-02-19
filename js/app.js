@@ -57,7 +57,7 @@ const App = {
         reader.readAsDataURL(file);
     },
 
-    init() {
+    async init() {
         console.log("[App] Initializing...");
 
         // Global Error Logging
@@ -82,7 +82,7 @@ const App = {
                 console.log("[App] Running in standalone mode");
             }
 
-            this.fetchData();
+            await this.fetchData();
 
             // Handle standalone mode routing immediately if needed
             if (this.state.isStandalone && !this.state.initialRouteHandled) {
@@ -279,7 +279,7 @@ const App = {
 
     async handleUserSubmit(id, formData) {
         const payload = Object.fromEntries(formData.entries());
-        if (StorageService.saveUser(payload, id)) {
+        if (await StorageService.saveUser(payload, id)) {
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
             this.fetchData();
             this.closeModal();
@@ -288,8 +288,9 @@ const App = {
 
     async deleteUser(id) {
         if (!confirm('해당 담당자를 삭제하시겠습니까?')) return;
-        StorageService.deleteUser(id);
-        this.fetchData();
+        if (await StorageService.deleteUser(id)) {
+            this.fetchData();
+        }
     },
 
     /**
@@ -952,7 +953,7 @@ const App = {
             const formData = new FormData(e.target);
             const payload = Object.fromEntries(formData.entries());
 
-            if (StorageService.saveDefect(payload, id)) {
+            if (await StorageService.saveDefect(payload, id)) {
                 alert('조치 결과가 저장되었습니다.');
                 this.fetchData();
                 this.closeModal();
@@ -971,7 +972,7 @@ const App = {
             return;
         }
 
-        if (StorageService.saveDefect(payload, id)) {
+        if (await StorageService.saveDefect(payload, id)) {
             localStorage.removeItem('pending_defect');
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
             this.fetchData();
@@ -1089,8 +1090,9 @@ const App = {
 
     async deleteDefect(id) {
         if (!confirm('정말 삭제하시겠습니까?')) return;
-        StorageService.deleteDefect(id);
-        this.fetchData();
+        if (await StorageService.deleteDefect(id)) {
+            this.fetchData();
+        }
     },
 
     /**

@@ -246,12 +246,13 @@
                 const screenshot = canvas.toDataURL('image/jpeg', 0.3);
 
                 const defectData = {
-                    title: `[${h1Text}] 결함 보고`,
+                    title: `[테스트벤치] ${h1Text} - 결함 보고`,
                     menu_name: storeName,
                     screen_name: h1Text,
                     screen_url: window.location.href,
                     screenshot: screenshot,
-                    env_info: `Browser: ${navigator.userAgent}`
+                    env_info: `Browser: ${navigator.userAgent}`,
+                    test_type: '통합테스트'
                 };
 
                 localStorage.setItem('pending_defect', JSON.stringify(defectData));
