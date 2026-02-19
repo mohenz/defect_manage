@@ -26,7 +26,7 @@ const App = {
             }
         },
         settings: {
-            enabledTestTypes: ['전체', '선오픈', '통합테스트', '단위테스트']
+            enabledTestTypes: ['선오픈', '통합테스트', '단위테스트']
         }
     },
 
@@ -304,7 +304,7 @@ const App = {
     },
 
     renderSettings(container) {
-        const types = ['전체', '선오픈', '통합테스트', '단위테스트'];
+        const types = ['선오픈', '통합테스트', '단위테스트'];
         const enabled = this.state.settings.enabledTestTypes;
 
         container.innerHTML = `
@@ -580,13 +580,13 @@ const App = {
                     datasets: Object.keys(typeCounts).map((type, index) => {
                         const count = typeCounts[type];
                         const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
-                        const colors = ['#64748b', '#ec4899', '#8b5cf6', '#3b82f6'];
+                        const colors = ['#ec4899', '#8b5cf6', '#3b82f6'];
 
                         return {
                             label: type,
                             data: [percentage],
-                            backgroundColor: (colors[index] || '#94a3b8') + 'a0',
-                            borderColor: (colors[index] || '#94a3b8'),
+                            backgroundColor: (colors[index] || '#64748b') + 'a0',
+                            borderColor: (colors[index] || '#64748b'),
                             borderWidth: 1,
                             count: count
                         };
