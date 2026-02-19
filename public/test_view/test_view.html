@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>테스트 벤치 - Project Zero Retail App</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f1f5f9;
+            display: block;
+            overflow-y: auto;
+        }
+
+        .test-header {
+            background: #fff;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            padding: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .product-card {
+            background: #fff;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .product-img {
+            height: 200px;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #94a3b8;
+        }
+
+        .product-info {
+            padding: 1.5rem;
+        }
+
+        .price {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        /* 버그 유발 스타일들 */
+        .bug-overflow {
+            white-space: nowrap;
+            overflow: visible;
+            width: 100px;
+            color: red;
+            font-weight: 800;
+            border: 2px dashed red;
+        }
+
+        /* 레이아웃 깨짐 버그 */
+        .bug-hidden-btn {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 버튼 안눌림 버그 */
+        .bug-wrong-calc {
+            color: #dc2626;
+            text-decoration: line-through;
+            margin-right: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* 가격 계산 오류 시각화 */
+
+        /* 결함 보고 플로팅 버튼 */
+        .report-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #2563eb;
+            color: #fff;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+
+        .report-fab:hover {
+            transform: scale(1.1);
+        }
+
+        .report-tooltip {
+            position: fixed;
+            bottom: 5.5rem;
+            right: 2rem;
+            background: #1e293b;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: 0.3s;
+            pointer-events: none;
+        }
+
+        .report-fab:hover+.report-tooltip {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-header">
+        <div class="store-name"
+            style="font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fas fa-shopping-cart" style="color: #2563eb;"></i>
+            ZeroStore Online
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">
+                <i class="fas fa-shield-halved"></i> QA Sandbox Mode
+            </div>
+            <button class="btn btn-primary"
+                style="background: #ef4444; border: none; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 0.5rem;"
+                onclick="openRegister()">
+                <i class="fas fa-plus-circle"></i> 신규 결함 등록
+            </button>
+        </div>
+    </div>
+
+    <div
+        style="background: #fff; padding: 1.5rem; text-align: center; border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 12px -5px rgba(0,0,0,0.05);">
+        <h1 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem;">쇼핑몰 메인 상품 목록</h1>
+        <p
+            style="color: #475569; font-size: 0.95rem; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <i class="fas fa-circle-info" style="color: #3b82f6;"></i>
+            <strong>QA 안내:</strong> 본 화면은 테스트용 시뮬레이션입니다. 상단 혹은 하단의 버튼을 눌러 발견한 결함을 등록해 주세요.
+        </p>
+    </div>
+
+    <div class="product-grid">
+        <!-- 정상 상품 -->
+        <div class="product-card">
+            <div class="product-img">🍎</div>
+            <div class="product-info">
+                <h3>유기농 사과 세트</h3>
+                <p style="color: #64748b; margin: 0.5rem 0;">신선한 경북 사과 10kg</p>
+                <div class="price">55,000원</div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">장바구니 담기</button>
+            </div>
+        </div>
+
+        <!-- 버그 상품 1: 레이아웃 텍스트 오버플로우 -->
+        <div class="product-card">
+            <div class="product-img">🍱</div>
+            <div class="product-info">
+                <h3>프리미엄 도시락 세트 (가정용/피크닉용/단체주문환영)</h3>
+                <p class="bug-overflow">이 텍스트는 너무 길어서 레이아웃을 뚫고 나가는 심각한 UI 결함이 있습니다.</p>
+                <div class="price">12,000원</div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">구매하기</button>
+            </div>
+        </div>
+
+        <!-- 버그 상품 2: 기능 오류 (버튼 사라짐/안눌림) -->
+        <div class="product-card">
+            <div class="product-img">🧊</div>
+            <div class="product-info">
+                <h3>초정밀 냉동고</h3>
+                <p style="color: #64748b; margin: 0.5rem 0;">영하 80도 유지 스마트 가전</p>
+                <div class="price">2,450,000원</div>
+                <button class="btn btn-primary bug-hidden-btn" style="width: 100%; margin-top: 1rem;">품절 (클릭
+                    불가)</button>
+            </div>
+        </div>
+
+        <!-- 버그 상품 3: 데이터/가격 계산 오류 -->
+        <div class="product-card">
+            <div class="product-img">🎧</div>
+            <div class="product-info">
+                <h3>노이즈 캔슬링 헤드셋</h3>
+                <p style="color: #64748b; margin: 0.5rem 0;">최고의 몰입감을 선사합니다.</p>
+                <div class="price">
+                    <span class="bug-wrong-calc">350,000원</span>
+                    <span style="color: #2563eb;">0원 (???)</span>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">이득보기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-fab" id="openReport">
+        <i class="fas fa-bug"></i>
+    </div>
+    <div class="report-tooltip">발견한 결함 등록하기</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script>
+        async function openRegister() {
+            // 1. 화면 캡처 및 정보 수집
+            const btn = document.querySelector('.test-header .btn-primary');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 캡처 중...';
+
+            // 잠깐의 지연을 주어 UI가 안정된 후 캡처 진행
+            await new Promise(r => setTimeout(r, 100));
+
+            try {
+                const canvas = await html2canvas(document.documentElement, {
+                    logging: false,
+                    useCORS: true,
+                    scale: 0.7,
+                    ignoreElements: (el) => el.classList.contains('report-fab') || el.classList.contains('report-tooltip')
+                });
+
+                // 정보 추출
+                const storeName = document.querySelector('.store-name')?.innerText.trim() || 'ZeroStore Online';
+                const h1Text = document.querySelector('h1')?.innerText.trim() || document.title;
+
+                const screenshot = canvas.toDataURL('image/jpeg', 0.3);
+
+                const defectData = {
+                    title: `[${h1Text}] 결함 보고`,
+                    menu_name: storeName,
+                    screen_name: h1Text,
+                    screen_url: window.location.href,
+                    screenshot: screenshot,
+                    env_info: `Browser: ${navigator.userAgent}`
+                };
+
+                localStorage.setItem('pending_defect', JSON.stringify(defectData));
+
+                const width = 1000;
+                const height = 900;
+                const left = (window.screen.width / 2) - (width / 2);
+                const top = (window.screen.height / 2) - (height / 2);
+
+                const popup = window.open('/index.html?mode=standalone#register', 'DefectRegister',
+                    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+
+                if (!popup) alert('팝업이 차단되었습니다. 팝업 허용이 필요합니다.');
+            } catch (err) {
+                alert('캡처 실패: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        document.getElementById('openReport').addEventListener('click', openRegister);
+    </script>
+</body>
+
+</html>

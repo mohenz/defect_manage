@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defect Manage - 결함 관리 시스템</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <nav>
+        <div class="logo">
+            <i class="fas fa-bug"></i> Defect Manage
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" class="nav-item active" data-view="dashboard"><i class="fas fa-chart-line"></i> 대시보드</a>
+            </li>
+            <li><a href="#" class="nav-item" data-view="list"><i class="fas fa-list-check"></i> 결함 목록</a></li>
+            <li><a href="#" class="nav-item" data-view="register"><i class="fas fa-plus-circle"></i> 결함 등록</a></li>
+            <li><a href="#" class="nav-item" data-view="users"><i class="fas fa-users-cog"></i> 담당자 관리</a></li>
+        </ul>
+
+        <div style="margin-top: auto; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
+            <label
+                style="color: var(--sidebar-text); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem; display: block;">현재
+                접속 권한</label>
+            <select id="roleSwitcher" onchange="App.state.currentRole = this.value; App.render();"
+                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); font-size: 0.8125rem; width: 100%; padding: 0.5rem; border-radius: 4px;">
+                <option value="테스터">테스터</option>
+                <option value="조치자">조치자</option>
+                <option value="관리자">관리자 (Admin)</option>
+            </select>
+        </div>
+    </nav>
+
+    <main id="app">
+        <!-- Content will be injected here by app.js -->
+        <div class="loader">Loading...</div>
+    </main>
+
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal-content" id="modalContent">
+            <div class="modal-controls">
+                <i class="fas fa-expand-alt modal-control-btn" id="maximizeBtn" onclick="App.toggleMaximize()"
+                    title="전체 화면"></i>
+                <i class="fas fa-times modal-control-btn close-modal-btn" onclick="App.closeModal()" title="닫기"></i>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+
+</html>
