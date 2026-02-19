@@ -20,6 +20,7 @@ const App = {
                 status: '',
                 creator: '',
                 assignee: '',
+                testType: '',
                 dateStart: '',
                 dateEnd: ''
             }
@@ -365,10 +366,18 @@ const App = {
                 </div>
             </div>
 
-            <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
-                <h2 style="margin-bottom: 1.5rem;">결함 상태별 비중</h2>
-                <div style="height: 100px;">
-                    <canvas id="statusChart"></canvas>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="form-container animate-in" style="max-width: 100%;">
+                    <h2 style="margin-bottom: 1.5rem;">결함 상태별 비중</h2>
+                    <div style="height: 100px;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+                <div class="form-container animate-in" style="max-width: 100%;">
+                    <h2 style="margin-bottom: 1.5rem;">테스트 구분별 비중</h2>
+                    <div style="height: 100px;">
+                        <canvas id="testTypeChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -478,6 +487,54 @@ const App = {
                 }
             });
         }
+
+        // Test Type Chart
+        const typeCounts = { '선오픈': 0, '통합테스트': 0, '단위테스트': 0 };
+        this.state.defects.forEach(d => {
+            const type = d.test_type || '단위테스트';
+            if (typeCounts[type] !== undefined) typeCounts[type]++;
+        });
+
+        const ctxType = document.getElementById('testTypeChart');
+        if (ctxType) {
+            new Chart(ctxType, {
+                type: 'bar',
+                data: {
+                    labels: ['전체'],
+                    datasets: Object.keys(typeCounts).map((type, index) => {
+                        const count = typeCounts[type];
+                        const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
+                        const colors = ['#ec4899', '#8b5cf6', '#3b82f6'];
+
+                        return {
+                            label: type,
+                            data: [percentage],
+                            backgroundColor: colors[index] + 'a0',
+                            borderColor: colors[index],
+                            borderWidth: 1,
+                            count: count
+                        };
+                    })
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${context.raw}% (${context.dataset.count}건)`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, display: false, max: 100 },
+                        y: { stacked: true, display: false }
+                    }
+                }
+            });
+        }
     },
 
     renderList(container) {
@@ -490,6 +547,7 @@ const App = {
             const matchesStatus = !search.status || d.status === search.status;
             const matchesCreator = !search.creator || d.creator.includes(search.creator);
             const matchesAssignee = !search.assignee || (d.assignee && d.assignee.includes(search.assignee));
+            const matchesTestType = !search.testType || (d.test_type || '단위테스트') === search.testType;
 
             let matchesDate = true;
             if (search.dateStart || search.dateEnd) {
@@ -505,7 +563,7 @@ const App = {
                     if (date > endDate) matchesDate = false;
                 }
             }
-            return matchesSeverity && matchesStatus && matchesCreator && matchesAssignee && matchesDate;
+            return matchesSeverity && matchesStatus && matchesCreator && matchesAssignee && matchesTestType && matchesDate;
         }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         // Pagination logic
@@ -550,6 +608,15 @@ const App = {
                             <option value="Verified" ${search.status === 'Verified' ? 'selected' : ''}>Verified</option>
                             <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
                             <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">테스트 구분</label>
+                        <select id="searchTestType" onchange="App.handleSearchChange()">
+                            <option value="">전체</option>
+                            <option value="선오픈" ${search.testType === '선오픈' ? 'selected' : ''}>선오픈</option>
+                            <option value="통합테스트" ${search.testType === '통합테스트' ? 'selected' : ''}>통합테스트</option>
+                            <option value="단위테스트" ${search.testType === '단위테스트' ? 'selected' : ''}>단위테스트</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
@@ -652,6 +719,7 @@ const App = {
             status: document.getElementById('searchStatus').value,
             creator: document.getElementById('searchCreator').value,
             assignee: document.getElementById('searchAssignee').value,
+            testType: document.getElementById('searchTestType').value,
             dateStart: document.getElementById('searchDateStart').value,
             dateEnd: document.getElementById('searchDateEnd').value
         };
@@ -665,6 +733,7 @@ const App = {
             status: '',
             creator: '',
             assignee: '',
+            testType: '',
             dateStart: '',
             dateEnd: ''
         };
