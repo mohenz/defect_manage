@@ -2,16 +2,15 @@
  * Supabase Data Persistence Service
  */
 
-const supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 const StorageService = {
     init() {
-        // Supabase initializes itself, no local init needed
         console.log("Supabase Service Initialized");
     },
 
     async getDefects() {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('defects')
             .select('*')
             .order('created_at', { ascending: false });
@@ -25,7 +24,7 @@ const StorageService = {
 
     async saveDefect(payload, id = null) {
         if (id) {
-            const { data, error } = await supabase
+            const { error } = await supabaseClient
                 .from('defects')
                 .update({ ...payload, updated_at: new Date().toISOString() })
                 .eq('defect_id', id);
@@ -36,7 +35,7 @@ const StorageService = {
             }
             return true;
         } else {
-            const { data, error } = await supabase
+            const { error } = await supabaseClient
                 .from('defects')
                 .insert([{
                     ...payload,
@@ -54,7 +53,7 @@ const StorageService = {
     },
 
     async deleteDefect(id) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('defects')
             .delete()
             .eq('defect_id', id);
@@ -67,7 +66,7 @@ const StorageService = {
     },
 
     async getUsers() {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('users')
             .select('*')
             .order('name', { ascending: true });
@@ -81,14 +80,14 @@ const StorageService = {
 
     async saveUser(payload, id = null) {
         if (id) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('users')
                 .update({ ...payload, updated_at: new Date().toISOString() })
                 .eq('user_id', id);
 
             return !error;
         } else {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('users')
                 .insert([{
                     ...payload,
@@ -102,7 +101,7 @@ const StorageService = {
     },
 
     async deleteUser(id) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('users')
             .delete()
             .eq('user_id', id);
