@@ -26,7 +26,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps:deployment:outputs:page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,10 +36,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository (static assets are in 'public/' but we might need root for structure or just upload public)
-          # Actually, usually on GH Pages you serve from a folder. 
-          # Let's upload the 'public' folder only as the root of the site.
-          path: './public'
+          # Upload entire repository as we moved files to root
+          path: '.'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
