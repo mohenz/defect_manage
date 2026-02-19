@@ -58,6 +58,7 @@ const App = {
     },
 
     init() {
+        StorageService.init();
         this.bindEvents();
 
         // Check for Standalone Mode (Popup)
@@ -92,34 +93,28 @@ const App = {
     },
 
     fetchData() {
-        const fetchDefects = fetch('/api/defects').then(res => res.json()).catch(() => []);
-        const fetchUsers = fetch('/api/users').then(res => res.json()).catch(() => []);
+        this.state.defects = StorageService.getDefects();
+        this.state.users = StorageService.getUsers();
+        this.calculateStats();
+        this.render();
 
-        Promise.all([fetchDefects, fetchUsers])
-            .then(([defects, users]) => {
-                this.state.defects = defects;
-                this.state.users = users;
-                this.calculateStats();
-                this.render();
+        // Handle initial routing after data is ready (if not already handled)
+        if (!this.state.initialRouteHandled) {
+            const hash = window.location.hash.substring(1);
+            if (hash === 'register') {
+                this.showRegisterModal();
+            } else if (['dashboard', 'list', 'users'].includes(hash)) {
+                this.navigate(hash);
+            }
+            this.state.initialRouteHandled = true;
+        }
 
-                // Handle initial routing after data is ready (if not already handled)
-                if (!this.state.initialRouteHandled) {
-                    const hash = window.location.hash.substring(1);
-                    if (hash === 'register') {
-                        this.showRegisterModal();
-                    } else if (['dashboard', 'list', 'users'].includes(hash)) {
-                        this.navigate(hash);
-                    }
-                    this.state.initialRouteHandled = true;
-                }
-
-                // Re-render modal if open to populate data (like users list)
-                if (this.state.currentModal === 'register') {
-                    this.showRegisterModal();
-                } else if (this.state.currentModal === 'edit') {
-                    this.editDefect(this.state.editingId);
-                }
-            });
+        // Re-render modal if open to populate data (like users list)
+        if (this.state.currentModal === 'register') {
+            this.showRegisterModal();
+        } else if (this.state.currentModal === 'edit') {
+            this.editDefect(this.state.editingId);
+        }
     },
 
     calculateStats() {
@@ -260,34 +255,17 @@ const App = {
 
     async handleUserSubmit(id, formData) {
         const payload = Object.fromEntries(formData.entries());
-        const url = id ? `/api/users/${id}` : '/api/users';
-        const method = id ? 'PUT' : 'POST';
-
-        try {
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert(id ? '수정되었습니다.' : '등록되었습니다.');
-                this.fetchData();
-                this.closeModal();
-            }
-        } catch (err) {
-            alert('오류가 발생했습니다.');
+        if (StorageService.saveUser(payload, id)) {
+            alert(id ? '수정되었습니다.' : '등록되었습니다.');
+            this.fetchData();
+            this.closeModal();
         }
     },
 
     async deleteUser(id) {
         if (!confirm('해당 담당자를 삭제하시겠습니까?')) return;
-        try {
-            await fetch(`/api/users/${id}`, { method: 'DELETE' });
-            this.fetchData();
-        } catch (err) {
-            alert('삭제 실패');
-        }
+        StorageService.deleteUser(id);
+        this.fetchData();
     },
 
     renderDashboard(container) {
@@ -920,20 +898,10 @@ const App = {
             const formData = new FormData(e.target);
             const payload = Object.fromEntries(formData.entries());
 
-            try {
-                const res = await fetch(`/api/defects/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    alert('조치 결과가 저장되었습니다.');
-                    this.fetchData();
-                    this.closeModal();
-                }
-            } catch (err) {
-                alert('저장 실패');
+            if (StorageService.saveDefect(payload, id)) {
+                alert('조치 결과가 저장되었습니다.');
+                this.fetchData();
+                this.closeModal();
             }
         });
     },
@@ -949,26 +917,12 @@ const App = {
             return;
         }
 
-        const url = id ? `/api/defects/${id}` : '/api/defects';
-        const method = id ? 'PUT' : 'POST';
-
-        try {
-            const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                // 스크린샷 데이터가 포함된 경우 이미지로 저장
-                localStorage.removeItem('pending_defect');
-                alert(id ? '수정되었습니다.' : '등록되었습니다.');
-                this.fetchData();
-                this.closeModal();
-                if (!id) this.navigate('list');
-            }
-        } catch (err) {
-            alert('오류가 발생했습니다.');
+        if (StorageService.saveDefect(payload, id)) {
+            localStorage.removeItem('pending_defect');
+            alert(id ? '수정되었습니다.' : '등록되었습니다.');
+            this.fetchData();
+            this.closeModal();
+            if (!id) this.navigate('list');
         }
     },
 
@@ -1081,12 +1035,8 @@ const App = {
 
     async deleteDefect(id) {
         if (!confirm('정말 삭제하시겠습니까?')) return;
-        try {
-            await fetch(`/api/defects/${id}`, { method: 'DELETE' });
-            this.fetchData();
-        } catch (err) {
-            alert('삭제 실패');
-        }
+        StorageService.deleteDefect(id);
+        this.fetchData();
     },
 
     /**
