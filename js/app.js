@@ -687,17 +687,25 @@ const App = {
         if (!id) {
             const pending = localStorage.getItem('pending_defect');
             if (pending) {
-                const data = JSON.parse(pending);
-                item = {
-                    ...item,
-                    title: data.title,
-                    menu_name: data.menu_name,
-                    screen_name: data.screen_name,
-                    screen_url: data.screen_url,
-                    screenshot: data.screenshot,
-                    env_info: data.env_info,
-                    test_type: data.test_type
-                };
+                try {
+                    const data = JSON.parse(pending);
+                    item = {
+                        ...item,
+                        title: data.title,
+                        menu_name: data.menu_name,
+                        screen_name: data.screen_name,
+                        screen_url: data.screen_url,
+                        screenshot: data.screenshot,
+                        env_info: data.env_info,
+                        test_type: data.test_type
+                    };
+                    // Clear after use so it doesn't stick for the next manual "New" click
+                    localStorage.removeItem('pending_defect');
+                    console.log("[App] Pending defect data consumed and cleared from localStorage");
+                } catch (e) {
+                    console.error("[App] Failed to parse pending_defect:", e);
+                    localStorage.removeItem('pending_defect');
+                }
             }
         }
 
