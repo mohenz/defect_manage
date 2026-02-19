@@ -665,6 +665,15 @@ const App = {
             <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 1.5rem; padding: 1.5rem;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
                     <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">테스트 구분</label>
+                        <select id="searchTestType" onchange="App.handleSearchChange()">
+                            <option value="">전체</option>
+                            ${this.state.settings.enabledTestTypes.map(t => `
+                                <option value="${t}" ${search.testType === t ? 'selected' : ''}>${t}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">심각도</label>
                         <select id="searchSeverity" onchange="App.handleSearchChange()">
                             <option value="">전체</option>
@@ -685,15 +694,6 @@ const App = {
                             <option value="Verified" ${search.status === 'Verified' ? 'selected' : ''}>Verified</option>
                             <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
                             <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.75rem;">테스트 구분</label>
-                        <select id="searchTestType" onchange="App.handleSearchChange()">
-                            <option value="">전체</option>
-                            ${this.state.settings.enabledTestTypes.map(t => `
-                                <option value="${t}" ${search.testType === t ? 'selected' : ''}>${t}</option>
-                            `).join('')}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
