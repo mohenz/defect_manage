@@ -466,7 +466,7 @@ const App = {
             // 타임존 식별자가 없는 경우 (ex: '2026-02-19 08:50:36') 
             // 이를 UTC로 해석하도록 Z를 붙여줌. 단, 이미 타임존이 있으면 그대로 둠.
             if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
-                dateStr = dateStr.replace(' ', 'T') + 'Z';
+                dateStr = dateStr.trim().replace(' ', 'T') + 'Z';
             }
 
             const date = new Date(dateStr);

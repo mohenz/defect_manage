@@ -9,12 +9,11 @@ const StorageService = {
     /**
      * Helper: Get KST ISO string with offset (+09:00)
      */
-    getKSTISO() {
-        const now = new Date();
-        const kstOffset = 9 * 60 * 60 * 1000;
-        const kstDate = new Date(now.getTime() + kstOffset);
-        // Returns "YYYY-MM-DDTHH:mm:ss.sss+09:00"
-        return kstDate.toISOString().replace('Z', '+09:00');
+    /**
+     * Helper: Get standard UTC ISO string
+     */
+    getISO() {
+        return new Date().toISOString();
     },
 
     init() {
@@ -80,7 +79,7 @@ const StorageService = {
 
     async saveDefect(payload, id = null) {
         console.log(`[Storage] Saving defect (${id ? 'Update' : 'New'})...`, payload);
-        const now = this.getKSTISO();
+        const now = this.getISO();
 
         try {
             // If screenshot is a new DataURL (Base64), upload it to Storage first
@@ -167,7 +166,7 @@ const StorageService = {
 
     async saveUser(payload, id = null) {
         console.log(`[Storage] Saving user (${id ? 'Update' : 'New'})...`, payload);
-        const now = this.getKSTISO();
+        const now = this.getISO();
 
         if (id) {
             const { error } = await supabaseClient
