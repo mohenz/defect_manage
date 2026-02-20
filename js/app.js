@@ -151,7 +151,7 @@ const App = {
             this.render();
 
             // Handle initial routing after data is ready (if not already handled)
-            if (!this.state.initialRouteHandled) {
+            if (!this.state.initialRouteHandled && this.state.isLoggedIn) {
                 const hash = window.location.hash.substring(1);
                 if (hash === 'register') {
                     this.showRegisterModal();
@@ -1224,7 +1224,7 @@ const App = {
                             <select name="creator" required>
                                 <option value="">선택하세요</option>
                                 ${this.state.users.filter(u => u.status === '사용').map(u => `
-                                    <option value="${this.sanitize(u.name)}" ${(item.creator || this.state.currentUser.name) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
+                                    <option value="${this.sanitize(u.name)}" ${(item.creator || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
                         </div>
@@ -1346,7 +1346,7 @@ const App = {
             <form id="actionForm">
                 <div class="form-group">
                     <label>조치자 (Assignee)</label>
-                    <input type="text" name="assignee" value="${this.sanitize(item.assignee || this.state.currentUser.name)}" required placeholder="조치 담당자 이름을 입력하세요">
+                    <input type="text" name="assignee" value="${this.sanitize(item.assignee || (this.state.currentUser ? this.state.currentUser.name : ''))}" required placeholder="조치 담당자 이름을 입력하세요">
                 </div>
 
                 <div class="form-group">
