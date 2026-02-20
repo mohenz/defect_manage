@@ -147,8 +147,21 @@ const App = {
     async fetchData() {
         console.log("[App] Fetching data from Supabase...");
         try {
-            this.state.defects = await StorageService.getDefects();
-            this.state.users = await StorageService.getUsers();
+            // 개별 페칭에 try-catch를 적용하여 비인증 상태(Standalone 등록 등)에서도 앱이 죽지 않게 함
+            try {
+                this.state.defects = await StorageService.getDefects();
+            } catch (e) {
+                console.warn("[App] Could not fetch defects (may need login):", e.message);
+                this.state.defects = this.state.defects || [];
+            }
+
+            try {
+                this.state.users = await StorageService.getUsers();
+            } catch (e) {
+                console.warn("[App] Could not fetch users (may need login):", e.message);
+                this.state.users = this.state.users || [];
+            }
+
             console.log(`[App] Data loaded. Defects: ${this.state.defects.length}, Users: ${this.state.users.length}`);
 
             this.calculateStats();
@@ -277,11 +290,13 @@ const App = {
             if (loginPrompt) loginPrompt.style.display = 'block';
         }
 
-        // Hide Sidebar entirely on Login/Signup pages
+        // Hide Sidebar entirely on Login/Signup pages or Standalone mode
         const nav = document.querySelector('nav');
         const isAuthPage = ['login', 'signup'].includes(this.state.currentView);
-        if (nav) nav.style.display = isAuthPage ? 'none' : 'flex';
-        document.getElementById('app').style.marginLeft = isAuthPage ? '0' : '260px';
+        const shouldHideNav = isAuthPage || this.state.isStandalone;
+
+        if (nav) nav.style.display = shouldHideNav ? 'none' : 'flex';
+        document.getElementById('app').style.marginLeft = shouldHideNav ? '0' : '260px';
     },
 
     renderLogin(container) {
