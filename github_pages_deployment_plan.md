@@ -16,7 +16,6 @@ GitHub Pages는 정적(Static) 호스팅만 지원하므로, 현재의 **Node.js
 ---
 
 ## 2. 주요 수정 필요 사항
-
 ### ① 데이터 서비스 레이어 (StorageService) 개발
 모든 API 호출(`fetch`) 로직을 `localStorage`를 직접 조작하는 서비스 객체로 캡슐화합니다.
 *   `getAllDefects()`: `localStorage`에서 읽기 (없으면 static json fetch).

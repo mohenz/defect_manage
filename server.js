@@ -101,7 +101,7 @@ app.post('/api/defects', (req, res) => {
     const newDefect = {
         defect_id: Date.now(),
         ...newData,
-        status: newData.status || 'New',
+        status: newData.status || 'Open',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };

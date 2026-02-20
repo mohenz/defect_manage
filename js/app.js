@@ -176,7 +176,7 @@ const App = {
         const d = this.getFilteredDefects();
         this.state.stats = {
             total: d.length,
-            open: d.filter(x => ['New', 'Open', 'In Progress', 'Reopened'].includes(x.status)).length,
+            open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
             resolved: d.filter(x => x.status === 'Resolved' || x.status === 'Closed').length,
             critical: d.filter(x => x.severity === 'Critical').length
         };
@@ -745,10 +745,10 @@ const App = {
 
         // Chart.js Initialization (Weighted Stacked Bar)
         const statusCounts = {
-            'New': 0, 'Open': 0, 'In Progress': 0, 'Resolved': 0, 'Verified': 0, 'Closed': 0, 'Reopened': 0
+            'Open': 0, 'In Progress': 0, 'Resolved': 0, 'Closed': 0, 'Reopened': 0
         };
         const statusMap = {
-            'New': '신규', 'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Verified': '검증 완료', 'Closed': '종료', 'Reopened': '재오픈'
+            'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Closed': '종료', 'Reopened': '재오픈'
         };
         let totalDefects = 0;
         defects.forEach(d => {
@@ -768,7 +768,7 @@ const App = {
                         const count = statusCounts[status];
                         const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
                         const colors = [
-                            '#3b82f6', '#fbbf24', '#f59e0b', '#10b981', '#8b5cf6', '#6b7280', '#ef4444'
+                            '#fbbf24', '#f59e0b', '#10b981', '#6b7280', '#ef4444'
                         ];
 
                         return {
@@ -941,11 +941,9 @@ const App = {
                         <label style="font-size: 0.75rem;">상태</label>
                         <select id="searchStatus" onchange="App.handleSearchChange()">
                             <option value="">전체</option>
-                            <option value="New" ${search.status === 'New' ? 'selected' : ''}>New</option>
                             <option value="Open" ${search.status === 'Open' ? 'selected' : ''}>Open</option>
                             <option value="In Progress" ${search.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                             <option value="Resolved" ${search.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-                            <option value="Verified" ${search.status === 'Verified' ? 'selected' : ''}>Verified</option>
                             <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
                             <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
                         </select>
@@ -1283,11 +1281,9 @@ const App = {
                     <div class="form-group">
                         <label>변경할 상태</label>
                         <select name="status">
-                            <option value="New" ${item.status === 'New' ? 'selected' : ''}>New (신규)</option>
                             <option value="Open" ${item.status === 'Open' ? 'selected' : ''}>Open (접수)</option>
                             <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
                             <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
-                            <option value="Verified" ${item.status === 'Verified' ? 'selected' : ''}>Verified (검증 완료)</option>
                             <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
                             <option value="Reopened" ${item.status === 'Reopened' ? 'selected' : ''}>Reopened (재오픈)</option>
                         </select>
