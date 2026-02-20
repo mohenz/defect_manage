@@ -1244,24 +1244,22 @@ const App = {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
-                            <label>심각도 ${this.state.currentRole !== '관리자' ? '<span style="color: var(--error); font-size: 0.7rem;">(관리자 외 수정 불가)</span>' : ''}</label>
-                                <select name="severity" ${this.state.currentRole !== '관리자' ? 'disabled' : ''}>
+                            <label>심각도</label>
+                                <select name="severity">
                                     <option value="Critical" ${item.severity === 'Critical' ? 'selected' : ''}>Critical</option>
                                     <option value="Major" ${item.severity === 'Major' ? 'selected' : ''}>Major</option>
                                     <option value="Minor" ${item.severity === 'Minor' ? 'selected' : (item.severity ? '' : 'selected')}>Minor</option>
                                     <option value="Simple" ${item.severity === 'Simple' ? 'selected' : ''}>Simple</option>
                                 </select>
-                                ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="severity" value="${item.severity || 'Minor'}">` : ''}
                         </div>
                         <div class="form-group">
-                            <label>우선순위 ${this.state.currentRole !== '관리자' ? '<span style="color: var(--error); font-size: 0.7rem;">(관리자 외 수정 불가)</span>' : ''}</label>
-                            <select name="priority" ${this.state.currentRole !== '관리자' ? 'disabled' : ''}>
+                            <label>우선순위</label>
+                            <select name="priority">
                                 <option value="P1" ${item.priority === 'P1' ? 'selected' : ''}>P1 (Urgent)</option>
                                 <option value="P2" ${item.priority === 'P2' ? 'selected' : ''}>P2 (High)</option>
                                 <option value="P3" ${item.priority === 'P3' ? 'selected' : 'selected'}>P3 (Normal)</option>
                                 <option value="P4" ${item.priority === 'P4' ? 'selected' : ''}>P4 (Low)</option>
                             </select>
-                            ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="priority" value="${item.priority || 'P3'}">` : ''}
                         </div>
                     </div>
 
