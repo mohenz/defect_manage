@@ -31,7 +31,8 @@ const App = {
         },
         settings: {
             enabledTestTypes: ['선오픈', '통합테스트', '단위테스트']
-        }
+        },
+        pendingDefectData: null // Stores data received via postMessage for cross-domain support
     },
 
     getFilteredDefects() {
@@ -107,7 +108,25 @@ const App = {
 
             if (this.state.isStandalone) {
                 document.body.classList.add('standalone-mode');
+                // Cross-Domain 통신: 부모 창이 있다면 준비 완료 신호를 보냄
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'DEFECTFLOW_READY' }, '*');
+                    console.log("[App] Standalone mode ready signal sent to opener.");
+                }
             }
+
+            // Message listener for cross-domain data (postMessage)
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'DEFECTFLOW_DATA') {
+                    console.log("[App] Defect data received via postMessage.");
+                    this.state.pendingDefectData = event.data.data;
+
+                    // 만약 현재 등록 모달이 열려있다면 즉시 재렌더링하여 데이터 반영
+                    if (this.state.currentModal === 'register') {
+                        this.showRegisterModal();
+                    }
+                }
+            });
 
             await this.fetchData();
 
@@ -1165,29 +1184,37 @@ const App = {
     renderForm(container, id = null) {
         let item = id ? this.state.defects.find(x => x.defect_id === id) : {};
 
-        // Handle pending data from Test Bench (for new defects)
+        // Handle pending data (Priority: postMessage > localStorage)
         if (!id) {
-            const pending = localStorage.getItem('pending_defect');
-            if (pending) {
+            const pendingFromMessage = this.state.pendingDefectData;
+            const pendingFromLocal = localStorage.getItem('pending_defect');
+
+            let data = null;
+            if (pendingFromMessage) {
+                data = pendingFromMessage;
+                console.log("[App] Using data from postMessage (Cross-Domain)");
+            } else if (pendingFromLocal) {
                 try {
-                    const data = JSON.parse(pending);
-                    item = {
-                        ...item,
-                        title: data.title,
-                        menu_name: data.menu_name,
-                        screen_name: data.screen_name,
-                        screen_url: data.screen_url,
-                        screenshot: data.screenshot,
-                        env_info: data.env_info,
-                        test_type: data.test_type
-                    };
-                    console.log("[App] Pending defect data consumed. Screenshot length:", data.screenshot ? data.screenshot.length : 0);
+                    data = JSON.parse(pendingFromLocal);
+                    console.log("[App] Using data from localStorage (Same-Domain)");
                 } catch (e) {
                     console.error("[App] Failed to parse pending_defect:", e);
                     localStorage.removeItem('pending_defect');
                 }
-            } else {
-                console.log("[App] No pending_defect found in localStorage");
+            }
+
+            if (data) {
+                item = {
+                    ...item,
+                    title: data.title,
+                    menu_name: data.menu_name,
+                    screen_name: data.screen_name,
+                    screen_url: data.screen_url,
+                    screenshot: data.screenshot,
+                    env_info: data.env_info,
+                    test_type: data.test_type
+                };
+                console.log("[App] Pending defect data consumed. Screenshot status:", !!data.screenshot);
             }
         }
 

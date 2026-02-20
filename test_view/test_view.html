@@ -287,8 +287,22 @@
                     test_type: '통합테스트'
                 };
 
+                // 1. Same-Domain (LocalStorage)
                 console.log("[TestBench] Saving data to localStorage...");
                 localStorage.setItem('pending_defect', JSON.stringify(defectData));
+
+                // 2. Cross-Domain Handshake
+                const messageHandler = function(event) {
+                    if (event.data && event.data.type === 'DEFECTFLOW_READY') {
+                        console.log("[TestBench] Popup ready received. Sending data via postMessage...");
+                        popup.postMessage({
+                            type: 'DEFECTFLOW_DATA',
+                            data: defectData
+                        }, '*');
+                        window.removeEventListener('message', messageHandler);
+                    }
+                };
+                window.addEventListener('message', messageHandler);
 
                 // 3. 팝업의 주소를 실제 등록 화면으로 이동
                 console.log("[TestBench] Redirecting popup to register view...");
