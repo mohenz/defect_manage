@@ -322,8 +322,8 @@ tr:hover td {
 
 .modal-content {
     background: white;
-    width: 800px;
-    max-width: 95%;
+    width: 90%;
+    max-width: 1000px;
     max-height: 90vh;
     border-radius: 1rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
