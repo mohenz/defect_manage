@@ -978,6 +978,7 @@ const App = {
                         <option value="20" ${config.pageSize == 20 ? 'selected' : ''}>20</option>
                         <option value="50" ${config.pageSize == 50 ? 'selected' : ''}>50</option>
                         <option value="100" ${config.pageSize == 100 ? 'selected' : ''}>100</option>
+                        ${this.state.currentRole === '관리자' ? `<option value="${totalItems}" ${config.pageSize >= totalItems && totalItems > 100 ? 'selected' : ''}>All</option>` : ''}
                     </select>
                 </div>
             </div>
@@ -1088,7 +1089,11 @@ const App = {
             return;
         }
 
-        const headers = ['ID', '구분', '제목', '심각도', '우선순위', '상태', '메뉴명', '화면명', '등록자', '담당자', '등록일', '수정일'];
+        const headers = [
+            'ID', '구분', '제목', '심각도', '우선순위', '상태',
+            '메뉴명', '화면명', '재현단계', '환경정보', '등록자', '담당자',
+            '등록일', '수정일', '조치내용', '조치시작일', '조치종료일'
+        ];
         const csvRows = [headers.join(',')];
 
         defects.forEach(d => {
@@ -1101,10 +1106,15 @@ const App = {
                 d.status,
                 `"${(d.menu_name || '').replace(/"/g, '""')}"`,
                 `"${(d.screen_name || '').replace(/"/g, '""')}"`,
+                `"${(d.steps_to_repro || '').replace(/"/g, '""')}"`,
+                `"${(d.env_info || '').replace(/"/g, '""')}"`,
                 d.creator,
                 d.assignee || '',
                 this.formatDateKST(d.created_at),
-                d.updated_at ? this.formatDateKST(d.updated_at) : ''
+                d.updated_at ? this.formatDateKST(d.updated_at) : '',
+                `"${(d.action_comment || '').replace(/"/g, '""')}"`,
+                d.action_start ? this.formatDateKST(d.action_start, false) : '',
+                d.action_end ? this.formatDateKST(d.action_end, false) : ''
             ];
             csvRows.push(row.join(','));
         });
