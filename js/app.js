@@ -112,16 +112,20 @@ const App = {
             await this.fetchData();
 
             // Handle Initial Routing
+            const hash = window.location.hash.substring(1);
             if (this.state.isLoggedIn) {
-                const hash = window.location.hash.substring(1);
                 this.navigate(hash || 'dashboard');
             } else {
-                // Save intended hash for post-login redirect
-                const hash = window.location.hash.substring(1);
-                if (hash && hash !== 'login' && hash !== 'signup') {
-                    this.state.returnTo = hash;
+                // Standalone 모드에서 register 요청인 경우 로그인 없이 진행 허용
+                if (this.state.isStandalone && hash === 'register') {
+                    this.navigate('register');
+                } else {
+                    // Save intended hash for post-login redirect
+                    if (hash && hash !== 'login' && hash !== 'signup') {
+                        this.state.returnTo = hash;
+                    }
+                    this.navigate('login');
                 }
-                this.navigate('login');
             }
 
             console.log("[App] Initialization complete");
@@ -151,14 +155,18 @@ const App = {
             this.render();
 
             // Handle initial routing after data is ready (if not already handled)
-            if (!this.state.initialRouteHandled && this.state.isLoggedIn) {
+            if (!this.state.initialRouteHandled) {
                 const hash = window.location.hash.substring(1);
-                if (hash === 'register') {
-                    this.showRegisterModal();
-                } else if (['dashboard', 'list', 'users'].includes(hash)) {
-                    this.navigate(hash);
+                const isStandaloneRegister = this.state.isStandalone && hash === 'register';
+
+                if (this.state.isLoggedIn || isStandaloneRegister) {
+                    if (hash === 'register') {
+                        this.showRegisterModal();
+                    } else if (['dashboard', 'list', 'users'].includes(hash)) {
+                        this.navigate(hash);
+                    }
+                    this.state.initialRouteHandled = true;
                 }
-                this.state.initialRouteHandled = true;
             }
 
             // Re-render modal if open to populate data (like users list)
@@ -186,7 +194,9 @@ const App = {
         if (!view) view = 'dashboard';
 
         // Authentication Guard
-        if (!this.state.isLoggedIn && view !== 'login' && view !== 'signup') {
+        // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
+        const isStandaloneRegister = this.state.isStandalone && view === 'register';
+        if (!this.state.isLoggedIn && !isStandaloneRegister && view !== 'login' && view !== 'signup') {
             this.state.currentView = 'login';
             this.render();
             return;
