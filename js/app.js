@@ -1264,16 +1264,6 @@ const App = {
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>결함식별 (조치자/관리자 전용)</label>
-                        <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
-                            <option value="">선택하세요</option>
-                            <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
-                            <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
-                            <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
-                        </select>
-                        ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
-                    </div>
 
                     <div class="form-group">
                         <label>재현 단계 (Steps to Reproduce)</label>
@@ -1350,15 +1340,27 @@ const App = {
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>변경할 상태</label>
-                        <select name="status">
-                            <option value="Open" ${item.status === 'Open' ? 'selected' : ''}>Open (접수)</option>
-                            <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
-                            <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
-                            <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
-                            <option value="Reopened" ${item.status === 'Reopened' ? 'selected' : ''}>Reopened (재오픈)</option>
-                        </select>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label>변경할 상태</label>
+                            <select name="status">
+                                <option value="Open" ${item.status === 'Open' ? 'selected' : ''}>Open (접수)</option>
+                                <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
+                                <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
+                                <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
+                                <option value="Reopened" ${item.status === 'Reopened' ? 'selected' : ''}>Reopened (재오픈)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>결함식별 (조치자/관리자 전용)</label>
+                            <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
+                                <option value="">선택하세요</option>
+                                <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
+                                <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
+                                <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                            </select>
+                            ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
+                        </div>
                     </div>
 
                     ${id ? `
@@ -1427,23 +1429,24 @@ const App = {
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>결함식별 (필수)</label>
-                    <select name="defect_identification" required>
-                        <option value="">선택하세요</option>
-                        <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
-                        <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
-                        <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>변경할 상태</label>
-                    <select name="status">
-                        <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
-                        <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
-                        <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
-                    </select>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label>변경할 상태</label>
+                        <select name="status">
+                            <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
+                            <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
+                            <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>결함식별 (필수)</label>
+                        <select name="defect_identification" required>
+                            <option value="">선택하세요</option>
+                            <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
+                            <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
+                            <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
