@@ -1034,7 +1034,6 @@ const App = {
                             <th>ID</th>
                             <th>구분</th>
                             <th>결함명</th>
-                            <th>식별</th>
                             <th>심각도</th>
                             <th>우선순위</th>
                             <th>상태</th>
@@ -1053,7 +1052,6 @@ const App = {
                                 <td style="max-width:250px; white-space:normal;">
                                     <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">${this.sanitize(d.title)}</strong>
                                 </td>
-                                <td><span class="badge" style="background: var(--bg-secondary); color: var(--text-main);">${d.defect_identification || '-'}</span></td>
                                 <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
                                 <td>${d.priority}</td>
                                 <td>${d.status}</td>
@@ -1069,7 +1067,7 @@ const App = {
                                     </div>
                                 </td>
                             </tr>
-                        `).join('') || '<tr><td colspan="13" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                        `).join('') || '<tr><td colspan="12" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
                     </tbody>
                 </table>
             </div>
