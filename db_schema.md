@@ -38,7 +38,7 @@ CREATE TABLE defects (
     screen_name     VARCHAR(100),                -- 화면명
     screen_url      TEXT,                        -- 관련 화면 URL (또는 캡처 원본 링크)
     screenshot      TEXT,                        -- 캡처 이미지 URL (Supabase Storage 연동)
-    defect_identification VARCHAR(50),           -- 결함식별 (기존결함, 협의필요, 신규요구사항)
+    defect_identification VARCHAR(50),           -- 결함식별 (기존결함, 협의필요, 신규요구사항, 결함아님)
     env_info        TEXT,                        -- 테스트 환경 정보 (Browser/OS)
     creator         VARCHAR(50),                 -- 등록자 (사용자 성함 연동)
     assignee        VARCHAR(50),                 -- 담당 조치자 (사용자 성함 연동)
