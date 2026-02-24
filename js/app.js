@@ -714,6 +714,20 @@ const App = {
     renderDashboard(container) {
         const stats = this.state.stats;
         const defects = this.getFilteredDefects();
+
+        // 등록자별/심각도별 통계 계산
+        const creatorStats = {};
+        defects.forEach(d => {
+            const creator = d.creator || '미지정';
+            if (!creatorStats[creator]) {
+                creatorStats[creator] = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+            }
+            creatorStats[creator].total++;
+            if (creatorStats[creator][d.severity] !== undefined) {
+                creatorStats[creator][d.severity]++;
+            }
+        });
+        const sortedCreators = Object.entries(creatorStats).sort((a, b) => b[1].total - a[1].total);
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -782,6 +796,36 @@ const App = {
                                     <td>${this.formatDateKST(d.created_at)}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="5" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-container animate-in" style="max-width: 100%; margin-top: 2rem;">
+                <h2 style="margin-bottom: 1.5rem;">등록자별 결함 통계 (심각도별)</h2>
+                <div class="data-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>등록자</th>
+                                <th style="text-align: center;">전체 건수</th>
+                                <th style="text-align: center; color: var(--error);">Critical</th>
+                                <th style="text-align: center; color: var(--warning);">Major</th>
+                                <th style="text-align: center; color: var(--accent);">Minor</th>
+                                <th style="text-align: center; color: var(--success);">Simple</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedCreators.map(([name, s]) => `
+                                <tr>
+                                    <td><strong>${this.sanitize(name)}</strong></td>
+                                    <td style="text-align: center;"><strong>${s.total}</strong></td>
+                                    <td style="text-align: center;">${s.Critical}</td>
+                                    <td style="text-align: center;">${s.Major}</td>
+                                    <td style="text-align: center;">${s.Minor}</td>
+                                    <td style="text-align: center;">${s.Simple}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">집계된 데이터가 없습니다.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
