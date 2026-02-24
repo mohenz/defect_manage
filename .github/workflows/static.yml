@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying; no building
+  # Single deploy job since we're just deploying static content
   deploy:
     environment:
       name: github-pages
@@ -36,7 +36,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository as we moved files to root
+          # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
         id: deployment

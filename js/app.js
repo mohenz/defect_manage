@@ -1032,7 +1032,9 @@ const App = {
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>구분</th>
                             <th>결함명</th>
+                            <th>식별</th>
                             <th>심각도</th>
                             <th>우선순위</th>
                             <th>상태</th>
@@ -1040,8 +1042,6 @@ const App = {
                             <th>등록자</th>
                             <th>담당자</th>
                             <th>등록일</th>
-                            <th>수정일</th>
-                            <th>조치 시작/종료</th>
                             <th>관리</th>
                         </tr>
                     </thead>
@@ -1049,9 +1049,11 @@ const App = {
                         ${pagedData.map(d => `
                             <tr>
                                 <td>#${d.defect_id}</td>
-                                <td style="max-width:300px; white-space:normal;">
-                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${(d.test_type || '단위테스트').substring(0, 2)}] ${this.sanitize(d.title)}</strong>
+                                <td>${d.test_type || '단위테스트'}</td>
+                                <td style="max-width:250px; white-space:normal;">
+                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">${this.sanitize(d.title)}</strong>
                                 </td>
+                                <td><span class="badge" style="background: var(--bg-secondary); color: var(--text-main);">${d.defect_identification || '-'}</span></td>
                                 <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
                                 <td>${d.priority}</td>
                                 <td>${d.status}</td>
@@ -1059,8 +1061,6 @@ const App = {
                                 <td>${this.sanitize(d.creator || '-')}</td>
                                 <td>${this.sanitize(d.assignee || '-')}</td>
                                 <td>${this.formatDateKST(d.created_at)}</td>
-                                <td>${(d.updated_at && d.updated_at !== d.created_at) ? this.formatDateKST(d.updated_at) : '-'}</td>
-                                <td>${this.formatDateKST(d.action_start, false)}<br>${this.formatDateKST(d.action_end, false)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
                                         <button class="btn" style="padding: 0.4rem; color: var(--info)" title="조치 결과 입력" onclick="App.actionDefect(${d.defect_id})"><i class="fas fa-tools"></i> 조치</button>
@@ -1134,7 +1134,7 @@ const App = {
         }
 
         const headers = [
-            'ID', '구분', '제목', '심각도', '우선순위', '상태',
+            'ID', '구분', '제목', '결함식별', '심각도', '우선순위', '상태',
             '메뉴명', '화면명', '재현단계', '환경정보', '등록자', '담당자',
             '등록일', '수정일', '조치내용', '조치시작일', '조치종료일'
         ];
@@ -1145,6 +1145,7 @@ const App = {
                 d.defect_id,
                 d.test_type || '단위테스트',
                 `"${(d.title || '').replace(/"/g, '""')}"`,
+                d.defect_identification || '-',
                 d.severity,
                 d.priority,
                 d.status,
@@ -1261,6 +1262,17 @@ const App = {
                                 <option value="P4" ${item.priority === 'P4' ? 'selected' : ''}>P4 (Low)</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>결함식별 (조치자/관리자 전용)</label>
+                        <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
+                            <option value="">선택하세요</option>
+                            <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
+                            <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
+                            <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                        </select>
+                        ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
                     </div>
 
                     <div class="form-group">
@@ -1413,6 +1425,16 @@ const App = {
                         <label>조치 완료일</label>
                         <input type="date" name="action_end" value="${App.getKSTDateString(item.action_end)}">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>결함식별 (필수)</label>
+                    <select name="defect_identification" required>
+                        <option value="">선택하세요</option>
+                        <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
+                        <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
+                        <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
