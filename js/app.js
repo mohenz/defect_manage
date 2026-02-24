@@ -26,7 +26,8 @@ const App = {
                 assignee: '',
                 testType: '',
                 dateStart: '',
-                dateEnd: ''
+                dateEnd: '',
+                identification: ''
             }
         },
         settings: {
@@ -913,6 +914,19 @@ const App = {
 
     renderList(container) {
         const config = this.state.listConfig;
+        // Ensure search object exists, initialize if not
+        if (!config.search) {
+            config.search = {
+                severity: '',
+                status: '',
+                creator: '',
+                assignee: '',
+                testType: '',
+                dateStart: '',
+                dateEnd: '',
+                identification: ''
+            };
+        }
         const search = config.search;
         const defects = this.getFilteredDefects();
 
@@ -923,6 +937,8 @@ const App = {
             const matchesCreator = !search.creator || d.creator.includes(search.creator);
             const matchesAssignee = !search.assignee || (d.assignee && d.assignee.includes(search.assignee));
             const matchesTestType = !search.testType || (d.test_type || '단위테스트') === search.testType;
+
+            const matchesIdentification = !search.identification || d.defect_identification === search.identification;
 
             let matchesDate = true;
             if (search.dateStart || search.dateEnd) {
@@ -938,7 +954,7 @@ const App = {
                     if (date > endDate) matchesDate = false;
                 }
             }
-            return matchesSeverity && matchesStatus && matchesCreator && matchesAssignee && matchesTestType && matchesDate;
+            return matchesSeverity && matchesStatus && matchesCreator && matchesAssignee && matchesTestType && matchesIdentification && matchesDate;
         }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         // Pagination logic
@@ -990,6 +1006,16 @@ const App = {
                             <option value="Resolved" ${search.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
                             <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
                             <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">결함식별</label>
+                        <select id="searchIdentification" onchange="App.handleSearchChange()">
+                            <option value="">전체</option>
+                            <option value="기존결함" ${search.identification === '기존결함' ? 'selected' : ''}>기존결함</option>
+                            <option value="협의필요" ${search.identification === '협의필요' ? 'selected' : ''}>협의필요</option>
+                            <option value="신규요구사항" ${search.identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                            <option value="본오픈대상" ${search.identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
@@ -1050,7 +1076,7 @@ const App = {
                                 <td>#${d.defect_id}</td>
                                 <td>${d.test_type || '단위테스트'}</td>
                                 <td style="max-width:250px; white-space:normal;">
-                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">${this.sanitize(d.title)}</strong>
+                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${(d.test_type || '단위테스트').substring(0, 2)}] ${this.sanitize(d.title)}</strong>
                                 </td>
                                 <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
                                 <td>${d.priority}</td>
@@ -1093,7 +1119,8 @@ const App = {
             assignee: document.getElementById('searchAssignee').value,
             testType: document.getElementById('searchTestType').value,
             dateStart: document.getElementById('searchDateStart').value,
-            dateEnd: document.getElementById('searchDateEnd').value
+            dateEnd: document.getElementById('searchDateEnd').value,
+            identification: document.getElementById('searchIdentification').value
         };
         this.state.listConfig.page = 1; // Reset to first page on search
         this.render();
@@ -1107,7 +1134,8 @@ const App = {
             assignee: '',
             testType: '',
             dateStart: '',
-            dateEnd: ''
+            dateEnd: '',
+            identification: ''
         };
         this.state.listConfig.page = 1;
         this.render();
