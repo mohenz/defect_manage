@@ -1,9 +1,11 @@
 # 🐛 DefectFlow - 결함 관리 시스템
 
-**Version**: 2.0.0  
-**Focus**: 데이터 동기화 및 결함 관리 워크플로우
+**Version**: 2.1.0  
+**Focus**: 데이터 동기화 및 결함 관리 워크플로우  
+**Deployment**: [https://mohenz.github.io/defect_manage/](https://mohenz.github.io/defect_manage/)  
 
-DefectFlow는 웹 기반의 결함 관리 도구로, Supabase 백엔드를 사용하여 데이터를 관리합니다.
+DefectFlow는 웹 기반의 결함 관리 도구로, Supabase 백엔드를 사용하며 GitHub Pages를 통해 배포됩니다.  
+*최근 업데이트: 결함식별(기존결함, 협의필요, 신규요구사항) 항목 관리 및 권한 제어 기능 추가*
 
 ## 📁 기술 스택
 - **프론트엔드**: HTML, JavaScript (Vanilla), CSS
