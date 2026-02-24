@@ -1358,6 +1358,7 @@ const App = {
                                 <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
                                 <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
                                 <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                                <option value="본오픈대상" ${item.defect_identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
                             </select>
                             ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
@@ -1445,6 +1446,7 @@ const App = {
                             <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
                             <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
                             <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
+                            <option value="본오픈대상" ${item.defect_identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
                         </select>
                     </div>
                 </div>
