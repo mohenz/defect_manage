@@ -717,14 +717,18 @@ const App = {
 
         // 등록자별/심각도별 통계 계산
         const creatorStats = {};
+        const grandTotal = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+
         defects.forEach(d => {
             const creator = d.creator || '미지정';
             if (!creatorStats[creator]) {
                 creatorStats[creator] = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
             }
             creatorStats[creator].total++;
+            grandTotal.total++;
             if (creatorStats[creator][d.severity] !== undefined) {
                 creatorStats[creator][d.severity]++;
+                grandTotal[d.severity]++;
             }
         });
         const sortedCreators = Object.entries(creatorStats).sort((a, b) => b[1].total - a[1].total);
@@ -827,6 +831,18 @@ const App = {
                                 </tr>
                             `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">집계된 데이터가 없습니다.</td></tr>'}
                         </tbody>
+                        ${sortedCreators.length > 0 ? `
+                        <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
+                            <tr>
+                                <td style="padding: 1rem;">합계 (Total)</td>
+                                <td style="text-align: center; padding: 1rem;">${grandTotal.total}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--error);">${grandTotal.Critical}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${grandTotal.Major}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${grandTotal.Minor}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--success);">${grandTotal.Simple}</td>
+                            </tr>
+                        </tfoot>
+                        ` : ''}
                     </table>
                 </div>
             </div>
