@@ -1335,12 +1335,13 @@ const App = {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
                             <label>심각도</label>
-                                <select name="severity">
-                                    <option value="Critical" ${item.severity === 'Critical' ? 'selected' : ''}>Critical</option>
-                                    <option value="Major" ${item.severity === 'Major' ? 'selected' : ''}>Major</option>
-                                    <option value="Minor" ${item.severity === 'Minor' ? 'selected' : (item.severity ? '' : 'selected')}>Minor</option>
-                                    <option value="Simple" ${item.severity === 'Simple' ? 'selected' : ''}>Simple</option>
-                                </select>
+                            <select name="severity" ${(!id || this.state.currentRole === '관리자' || (this.state.currentUser && item.creator === this.state.currentUser.name)) ? '' : 'disabled'}>
+                                <option value="Critical" ${item.severity === 'Critical' ? 'selected' : ''}>Critical</option>
+                                <option value="Major" ${item.severity === 'Major' ? 'selected' : ''}>Major</option>
+                                <option value="Minor" ${item.severity === 'Minor' ? 'selected' : (item.severity ? '' : 'selected')}>Minor</option>
+                                <option value="Simple" ${item.severity === 'Simple' ? 'selected' : ''}>Simple</option>
+                            </select>
+                            ${(id && this.state.currentRole !== '관리자' && (this.state.currentUser && item.creator !== this.state.currentUser.name)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 심각도는 작성자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
                         <div class="form-group">
                             <label>우선순위</label>
