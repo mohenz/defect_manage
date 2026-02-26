@@ -45,6 +45,7 @@ CREATE TABLE defects (
     action_comment  TEXT,                        -- 결함 조치 내용
     action_start    DATE,                        -- 조치 시작일
     action_end      DATE,                        -- 조치 종료일
+    is_deleted      VARCHAR(1) DEFAULT 'N',      -- 삭제 여부 (Y/N)
     created_at      TIMESTAMPTZ DEFAULT NOW(),   -- 등록일
     updated_at      TIMESTAMPTZ DEFAULT NOW()    -- 수정일
 );

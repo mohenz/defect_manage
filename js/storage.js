@@ -24,6 +24,7 @@ const StorageService = {
         const { data, error } = await supabaseClient
             .from('defects')
             .select('*')
+            .eq('is_deleted', 'N')
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -138,7 +139,7 @@ const StorageService = {
         console.log(`[Storage] Deleting defect #${id}...`);
         const { error } = await supabaseClient
             .from('defects')
-            .delete()
+            .update({ is_deleted: 'Y', updated_at: this.getISO() })
             .eq('defect_id', id);
 
         if (error) {

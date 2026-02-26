@@ -1152,7 +1152,9 @@ const App = {
                                     <div style="display:flex; gap:0.5rem;">
                                         <button class="btn" style="padding: 0.4rem; color: var(--info)" title="조치 결과 입력" onclick="App.actionDefect(${d.defect_id})"><i class="fas fa-tools"></i> 조치</button>
                                         <button class="btn" style="padding: 0.4rem; color: var(--accent)" onclick="App.editDefect(${d.defect_id})"><i class="fas fa-edit"></i></button>
-                                        <button class="btn" style="padding: 0.4rem; color: var(--error)" onclick="App.deleteDefect(${d.defect_id})"><i class="fas fa-trash"></i></button>
+                                        ${this.state.currentRole === '관리자' ? `
+                                            <button class="btn" style="padding: 0.4rem; color: var(--error)" onclick="App.deleteDefect(${d.defect_id})"><i class="fas fa-trash"></i></button>
+                                        ` : ''}
                                     </div>
                                 </td>
                             </tr>
@@ -1691,8 +1693,13 @@ const App = {
     },
 
     async deleteDefect(id) {
-        if (!confirm('정말 삭제하시겠습니까?')) return;
+        if (this.state.currentRole !== '관리자') {
+            alert('삭제 권한이 없습니다. 관리자에게 문의하세요.');
+            return;
+        }
+        if (!confirm('정말 삭제하시겠습니까? 데이터는 목록에서 보이지 않게 처리됩니다.')) return;
         if (await StorageService.deleteDefect(id)) {
+            alert('삭제 처리되었습니다.');
             this.fetchData();
         }
     },
