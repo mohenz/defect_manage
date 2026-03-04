@@ -29,7 +29,7 @@ CREATE TABLE users (
 CREATE TABLE defects (
     defect_id       BIGINT PRIMARY KEY,          -- 결함 ID (Unique Timestamp)
     title           VARCHAR(200) NOT NULL,       -- 결함 제목
-    test_type       VARCHAR(50),                 -- 테스트 구분 (선오픈, 3자테스트(W2), 3자테스트(I&C), 통합, 단위 등)
+    test_type       VARCHAR(50),                 -- 테스트 구분 (선오픈, 통합테스트, 3자테스트(I&C), 3자테스트(W2), 단위 등)
     severity        VARCHAR(20),                 -- 심각도 (Critical, Major, Minor, Simple)
     priority        VARCHAR(10),                 -- 우선순위 (P1, P2, P3, P4)
     status          VARCHAR(20) DEFAULT 'New',   -- 상태 (New, Open, Resolved, Closed 등)

@@ -31,7 +31,7 @@ const App = {
             }
         },
         settings: {
-            enabledTestTypes: ['선오픈', '3자테스트(W2)', '3자테스트(I&C)', '통합테스트', '단위테스트']
+            enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
         pendingDefectData: null // Stores data received via postMessage for cross-domain support
     },
@@ -604,7 +604,7 @@ const App = {
     },
 
     renderSettings(container) {
-        const types = ['선오픈', '3자테스트(W2)', '3자테스트(I&C)', '통합테스트', '단위테스트'];
+        const types = ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트'];
         const enabled = this.state.settings.enabledTestTypes;
 
         container.innerHTML = `
