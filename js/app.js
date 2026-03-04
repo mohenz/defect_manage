@@ -95,13 +95,12 @@ const App = {
                 document.body.classList.add('logged-in');
             }
 
-            // Load Settings (Ensure new default types are merged)
+            // Load Settings
             const savedSettings = localStorage.getItem('app_settings');
             if (savedSettings) {
                 const parsed = JSON.parse(savedSettings);
-                // 기존 설정에 새로운 기본 타입들이 누락되어 있다면 추가
-                const mergedTypes = [...new Set([...this.state.settings.enabledTestTypes, ...(parsed.enabledTestTypes || [])])];
-                this.state.settings = { ...this.state.settings, ...parsed, enabledTestTypes: mergedTypes };
+                // Respect saved settings, but merge other properties if any.
+                this.state.settings = { ...this.state.settings, ...parsed };
             }
 
             this.bindEvents();
@@ -608,12 +607,12 @@ const App = {
         const enabled = this.state.settings.enabledTestTypes;
 
         container.innerHTML = `
-    < header class="animate-in" >
-        <div>
-            <h1>환경 설정</h1>
-            <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
-        </div>
-            </header >
+            <header class="animate-in">
+                <div>
+                    <h1>환경 설정</h1>
+                    <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
+                </div>
+            </header>
 
     <div class="form-container animate-in" style="max-width: 600px;">
         <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
