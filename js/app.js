@@ -31,7 +31,7 @@ const App = {
             }
         },
         settings: {
-            enabledTestTypes: ['선오픈', '통합테스트', '단위테스트']
+            enabledTestTypes: ['선오픈', '3자테스트(W2)', '3자테스트(I&C)', '통합테스트', '단위테스트']
         },
         pendingDefectData: null // Stores data received via postMessage for cross-domain support
     },
@@ -95,10 +95,13 @@ const App = {
                 document.body.classList.add('logged-in');
             }
 
-            // Load Settings
+            // Load Settings (Ensure new default types are merged)
             const savedSettings = localStorage.getItem('app_settings');
             if (savedSettings) {
-                this.state.settings = { ...this.state.settings, ...JSON.parse(savedSettings) };
+                const parsed = JSON.parse(savedSettings);
+                // 기존 설정에 새로운 기본 타입들이 누락되어 있다면 추가
+                const mergedTypes = [...new Set([...this.state.settings.enabledTestTypes, ...(parsed.enabledTestTypes || [])])];
+                this.state.settings = { ...this.state.settings, ...parsed, enabledTestTypes: mergedTypes };
             }
 
             this.bindEvents();
@@ -601,7 +604,7 @@ const App = {
     },
 
     renderSettings(container) {
-        const types = ['선오픈', '통합테스트', '단위테스트'];
+        const types = ['선오픈', '3자테스트(W2)', '3자테스트(I&C)', '통합테스트', '단위테스트'];
         const enabled = this.state.settings.enabledTestTypes;
 
         container.innerHTML = `
