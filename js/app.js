@@ -231,7 +231,9 @@ const App = {
         // Authentication Guard
         // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
         const isStandaloneRegister = this.state.isStandalone && view === 'register';
-        if (!this.state.isLoggedIn && !isStandaloneRegister && view !== 'login' && view !== 'signup') {
+        const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
+        
+        if (!this.state.isLoggedIn && !isStandaloneRegister && !isAuthView) {
             this.state.currentView = 'login';
             this.render();
             return;
@@ -283,6 +285,7 @@ const App = {
             case 'settings': this.renderSettings(root); break;
             case 'login': this.renderLogin(root); break;
             case 'signup': this.renderSignup(root); break;
+            case 'password-reset': this.renderPasswordReset(root); break;
         }
     },
 
@@ -312,9 +315,9 @@ const App = {
             if (loginPrompt) loginPrompt.style.display = 'block';
         }
 
-        // Hide Sidebar entirely on Login/Signup pages or Standalone mode
+        // Hide Sidebar entirely on Login/Signup/Reset pages or Standalone mode
         const nav = document.querySelector('nav');
-        const isAuthPage = ['login', 'signup'].includes(this.state.currentView);
+        const isAuthPage = ['login', 'signup', 'password-reset'].includes(this.state.currentView);
         const shouldHideNav = isAuthPage || this.state.isStandalone;
 
         if (nav) nav.style.display = shouldHideNav ? 'none' : 'flex';
@@ -343,8 +346,9 @@ const App = {
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">로그인</button>
                     </form>
                     
-                    <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
-                        계정이 없으신가요? <a href="#" onclick="App.navigate('signup')" style="color: var(--accent); font-weight: 600;">회원가입</a>
+                    <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div>계정이 없으신가요? <a href="#" onclick="App.navigate('signup')" style="color: var(--accent); font-weight: 600;">회원가입</a></div>
+                        <div>비밀번호를 잊으셨나요? <a href="#" onclick="App.navigate('password-reset')" style="color: var(--text-secondary); font-size: 0.8rem;">비밀번호 초기화</a></div>
                     </div>
                 </div>
             </div>
@@ -476,6 +480,101 @@ const App = {
             } catch (err) {
                 console.error("Signup error:", err);
                 alert('가입 중 오류가 발생했습니다.');
+            }
+        };
+    },
+
+    renderPasswordReset(container) {
+        container.innerHTML = `
+            <div class="login-screen animate-in">
+                <div class="login-card">
+                    <div class="login-logo">
+                        <i class="fas fa-key"></i> 비밀번호 재설정
+                    </div>
+                    <h2>비밀번호 찾기</h2>
+                    <p class="subtitle">등록된 이메일 주소를 입력해 주세요.</p>
+                    
+                    <form id="resetRequestForm" style="margin-top: 2rem;">
+                        <div class="form-group">
+                            <label>이메일</label>
+                            <input type="email" id="resetEmail" required placeholder="example@company.com">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">다음</button>
+                    </form>
+
+                    <div id="resetPasswordStep" style="display: none; margin-top: 2rem;">
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+                        <h3 style="margin-bottom: 1rem;">새 비밀번호 설정</h3>
+                        <form id="newPasswordForm">
+                            <div class="form-group">
+                                <label>새 비밀번호</label>
+                                <input type="password" id="newPassword" required placeholder="6자 이상 입력">
+                            </div>
+                            <div class="form-group">
+                                <label>비밀번호 확인</label>
+                                <input type="password" id="confirmPassword" required placeholder="비밀번호를 다시 입력하세요">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">비밀번호 변경</button>
+                        </form>
+                    </div>
+                    
+                    <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
+                        생각나셨나요? <a href="#" onclick="App.navigate('login')" style="color: var(--accent); font-weight: 600;">로그인으로 돌아가기</a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let targetEmail = '';
+
+        document.getElementById('resetRequestForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+
+            try {
+                const user = await StorageService.findUserByEmail(email);
+                if (user) {
+                    targetEmail = email;
+                    document.getElementById('resetEmail').disabled = true;
+                    e.target.querySelector('button').style.display = 'none';
+                    document.getElementById('resetPasswordStep').style.display = 'block';
+                } else {
+                    alert('등록되지 않은 이메일입니다.');
+                }
+            } catch (err) {
+                alert('사용자 확인 중 오류가 발생했습니다.');
+            }
+        };
+
+        document.getElementById('newPasswordForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword.length < 6) {
+                alert('비밀번호는 6자 이상이어야 합니다.');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            try {
+                const salt = bcrypt.genSaltSync(10);
+                const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+                const success = await StorageService.resetPassword(targetEmail, hashedPassword);
+                if (success) {
+                    alert('비밀번호가 성공적으로 변경되었습니다. 새로운 비밀번호로 로그인해 주세요.');
+                    this.navigate('login');
+                } else {
+                    alert('비밀번호 변경에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error("Password reset error:", err);
+                alert('비밀번호 변경 중 오류가 발생했습니다.');
             }
         };
     },

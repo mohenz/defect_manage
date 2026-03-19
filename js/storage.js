@@ -209,6 +209,25 @@ const StorageService = {
         return data;
     },
 
+    async resetPassword(email, hashedPassword) {
+        console.log(`[Storage] Resetting password for ${email}...`);
+        const { error } = await supabaseClient
+            .from('users')
+            .update({ 
+                password: hashedPassword, 
+                updated_at: this.getISO(),
+                needs_password_reset: false 
+            })
+            .eq('email', email);
+
+        if (error) {
+            console.error("[Storage] Error resetting password:", error.message);
+            return false;
+        }
+        console.log("[Storage] Password reset successfully.");
+        return true;
+    },
+
     async deleteUser(id) {
         console.log(`[Storage] Deleting user #${id}...`);
         const { error } = await supabaseClient
