@@ -33,12 +33,54 @@ window.App = {
         settings: {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
-        pendingDefectData: null // Stores data received via postMessage for cross-domain support
+        pendingDefectData: null, // Stores data received via postMessage for cross-domain support
+        selectedDefect: null
     },
 
     getFilteredDefects() {
         const types = this.state.settings.enabledTestTypes;
         return this.state.defects.filter(d => types.includes(d.test_type || '단위테스트'));
+    },
+
+    getEffectiveRole() {
+        return this.state.currentRole || (this.state.currentUser ? this.state.currentUser.role : '테스터');
+    },
+
+    canEditAssignee() {
+        return ['조치자', '관리자'].includes(this.getEffectiveRole());
+    },
+
+    getSelectedDefect(id = null) {
+        if (id && this.state.selectedDefect && this.state.selectedDefect.defect_id === id) {
+            return this.state.selectedDefect;
+        }
+
+        return id ? (this.state.defects.find(x => x.defect_id === id) || null) : null;
+    },
+
+    buildDefectPayload(formElement, id = null) {
+        const formData = new FormData(formElement);
+        const payload = Object.fromEntries(formData.entries());
+        const originalItem = id ? (this.getSelectedDefect(id) || {}) : {};
+        const nullableDateFields = ['action_start', 'action_end'];
+
+        nullableDateFields.forEach((field) => {
+            if (payload[field] === '') {
+                payload[field] = null;
+            }
+        });
+
+        // Avoid resending an unchanged screenshot on edit, especially for legacy Base64 rows.
+        if (id && payload.screenshot === (originalItem.screenshot || '')) {
+            delete payload.screenshot;
+        }
+
+        // Preserve assignee unless the current user is an action owner or admin.
+        if (!this.canEditAssignee()) {
+            payload.assignee = originalItem.assignee || '';
+        }
+
+        return payload;
     },
 
     handleImageUpload(input) {
@@ -178,7 +220,7 @@ window.App = {
 
     async fetchData() {
         console.log("[App] Fetching data from Supabase...");
-        
+
         // Show loader if possible
         const root = document.getElementById('app');
         if (root && root.innerHTML === '') {
@@ -235,7 +277,7 @@ window.App = {
         // Use allDefectsSummary (minimal data) instead of current page
         const types = this.state.settings.enabledTestTypes;
         const d = this.state.allDefectsSummary.filter(d => types.includes(d.test_type || '단위테스트'));
-        
+
         this.state.stats = {
             total: d.length,
             open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
@@ -251,7 +293,7 @@ window.App = {
         // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
         const isStandaloneRegister = this.state.isStandalone && view === 'register';
         const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
-        
+
         if (!this.state.isLoggedIn && !isStandaloneRegister && !isAuthView) {
             this.state.currentView = 'login';
             this.render();
@@ -770,7 +812,7 @@ window.App = {
 
     async updateSettings(newSettings) {
         this.state.settings = { ...this.state.settings, ...newSettings };
-        
+
         // 1. Sync to LocalStorage (Immediate UI feedback fallback)
         localStorage.setItem('app_settings', JSON.stringify(this.state.settings));
 
@@ -848,7 +890,7 @@ window.App = {
     renderDashboard(container) {
         const stats = this.state.stats;
         // All necessary summary data is now in state.allDefectsSummary
-        const defects = this.state.allDefectsSummary.filter(d => 
+        const defects = this.state.allDefectsSummary.filter(d =>
             this.state.settings.enabledTestTypes.includes(d.test_type || '단위테스트')
         );
 
@@ -1173,7 +1215,7 @@ window.App = {
     renderList(container) {
         const config = this.state.listConfig;
         const search = config.search;
-        
+
         // pagedData: Now already fetched from server
         const pagedData = this.state.defects;
         const totalItems = this.state.totalDefectCount;
@@ -1345,7 +1387,7 @@ window.App = {
             dateEnd: document.getElementById('searchDateEnd').value,
             identification: document.getElementById('searchIdentification').value
         };
-        this.state.listConfig.page = 1; 
+        this.state.listConfig.page = 1;
         this.fetchData(); // Trigger server-side fetch on search change
     },
 
@@ -1431,8 +1473,10 @@ window.App = {
         return str.length > len ? str.substring(0, len) + '...' : str;
     },
 
-    renderForm(container, id = null) {
-        let item = id ? this.state.defects.find(x => x.defect_id === id) : {};
+    renderForm(container, id = null, itemOverride = null) {
+        const isAdmin = this.getEffectiveRole() === '관리자';
+        const canAssign = this.canEditAssignee();
+        let item = itemOverride || (id ? this.getSelectedDefect(id) : {}) || {};
 
         // Handle pending data (Priority: postMessage > localStorage)
         if (!id) {
@@ -1473,7 +1517,7 @@ window.App = {
         container.innerHTML = `
             <div style="margin-bottom: 2rem;">
                 <h1>${title}</h1>
-                <p class="subtitle">보안 강화된 입력 폼을 통해 결함을 상세 기록하세요.</p>
+                <p class="subtitle">결함을 상세하게 기록해 주세요.</p>
             </div>
 
             <div class="${id ? '' : 'form-container animate-in'}">
@@ -1532,14 +1576,15 @@ window.App = {
                             ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="creator" value="${this.sanitize(item.creator || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
                         </div>
                         <div class="form-group">
-                            <label>담당자 (조치자) ${['관리자', '조치자'].includes(this.state.currentRole) ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
-                            <select name="assignee" ${['관리자', '조치자'].includes(this.state.currentRole) ? '' : 'disabled'}>
+                            <label>담당자 (조치자) ${canAssign ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
+                            <select name="assignee" ${canAssign ? '' : 'disabled'}>
                                 <option value="">선택 안함</option>
-                                ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
+                                ${this.state.users.filter(u => u.status === '사용' && (isAdmin || u.role === '조치자')).map(u => `
                                     <option value="${this.sanitize(u.name)}" ${item.assignee === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
-                            ${!['관리자', '조치자'].includes(this.state.currentRole) ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
+                            ${canAssign ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 관리자와 조치자는 결함정보관리 화면에서 담당자 정보를 수정할 수 있습니다.</p>' : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>'}
+                            ${!canAssign ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
                         </div>
                     </div>
 
@@ -1653,8 +1698,8 @@ window.App = {
         });
     },
 
-    renderActionForm(container, id) {
-        const item = this.state.defects.find(x => x.defect_id === id) || {};
+    renderActionForm(container, id, itemOverride = null) {
+        const item = itemOverride || this.getSelectedDefect(id) || {};
         container.innerHTML = `
             <div style="margin-bottom: 2rem;">
                 <h1>결함 조치 결과 입력</h1>
@@ -1720,12 +1765,11 @@ window.App = {
 
         document.getElementById('actionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
+            const payload = this.buildDefectPayload(e.target, id);
 
             if (await StorageService.saveDefect(payload, id)) {
                 alert('조치 결과가 저장되었습니다.');
-                this.fetchData();
+                await this.fetchData();
                 this.closeModal();
             }
         });
@@ -1733,8 +1777,8 @@ window.App = {
 
     async handleFormSubmit(id) {
         const form = document.getElementById('defectForm');
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
+        const submitButton = form.querySelector('button[type="submit"]');
+        const payload = this.buildDefectPayload(form, id);
 
         // Security: String validation
         if (!payload.title || payload.title.length < 5) {
@@ -1742,13 +1786,26 @@ window.App = {
             return;
         }
 
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = id ? '저장 중...' : '등록 중...';
+        }
+
         if (await StorageService.saveDefect(payload, id)) {
             localStorage.removeItem('pending_defect');
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
-            this.fetchData();
+            await this.fetchData();
             this.closeModal();
             if (!id) this.navigate('list');
+            return;
         }
+
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = id ? '수정 완료' : '결함 등록';
+        }
+
+        alert(id ? '수정에 실패했습니다. 잠시 후 다시 시도해 주세요.' : '등록에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     },
 
     showRegisterModal() {
@@ -1758,19 +1815,31 @@ window.App = {
         this.openModal();
     },
 
-    editDefect(id) {
+    async editDefect(id) {
         this.state.currentModal = 'edit';
         this.state.editingId = id;
         const modalBody = document.getElementById('modalBody');
-        this.renderForm(modalBody, id);
+        try {
+            this.state.selectedDefect = await StorageService.getDefectById(id);
+        } catch (err) {
+            console.error("[App] Failed to load defect detail for edit:", err);
+            this.state.selectedDefect = this.getSelectedDefect(id);
+        }
+        this.renderForm(modalBody, id, this.state.selectedDefect);
         this.openModal();
     },
 
-    actionDefect(id) {
+    async actionDefect(id) {
         this.state.currentModal = 'action';
         this.state.editingId = id;
         const modalBody = document.getElementById('modalBody');
-        this.renderActionForm(modalBody, id);
+        try {
+            this.state.selectedDefect = await StorageService.getDefectById(id);
+        } catch (err) {
+            console.error("[App] Failed to load defect detail for action:", err);
+            this.state.selectedDefect = this.getSelectedDefect(id);
+        }
+        this.renderActionForm(modalBody, id, this.state.selectedDefect);
         this.openModal();
     },
 
@@ -1785,6 +1854,7 @@ window.App = {
             return;
         }
         this.state.currentModal = null;
+        this.state.selectedDefect = null;
         document.getElementById('modalOverlay').classList.remove('active');
         document.getElementById('modalContent').classList.remove('maximize');
         document.getElementById('maximizeBtn').className = 'fas fa-expand-alt modal-control-btn';

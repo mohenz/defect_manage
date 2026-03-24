@@ -52,6 +52,22 @@ const StorageService = {
         return { data, totalCount: count };
     },
 
+    async getDefectById(id) {
+        console.log(`[Storage] Requesting defect detail #${id}...`);
+        const { data, error } = await supabaseClient
+            .from('defects')
+            .select('*')
+            .eq('defect_id', id)
+            .single();
+
+        if (error) {
+            console.error("[Storage] Error fetching defect detail:", error.message);
+            throw error;
+        }
+
+        return data;
+    },
+
     /**
      * Get minimal defect data for dashboard stats to reduce payload size
      */
@@ -136,6 +152,7 @@ const StorageService = {
 
                 if (error) {
                     console.error("[Storage] Error updating defect:", error.message);
+                    alert("수정 실패: " + error.message);
                     return false;
                 }
                 console.log("[Storage] Defect updated successfully.");
@@ -165,6 +182,7 @@ const StorageService = {
             }
         } catch (err) {
             console.error("[Storage] Exception in saveDefect:", err);
+            alert("저장 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.");
             return false;
         }
     },
