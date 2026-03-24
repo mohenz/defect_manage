@@ -1306,7 +1306,9 @@ window.App = {
                                 <td>${this.formatDateKST(d.created_at)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
-                                        <button class="btn" style="padding: 0.4rem; color: var(--info)" title="조치 결과 입력" onclick="App.actionDefect(${d.defect_id})"><i class="fas fa-tools"></i> 조치</button>
+                                        ${['조치자', '관리자'].includes(this.state.currentRole) ? `
+                                            <button class="btn" style="padding: 0.4rem; color: var(--info)" title="조치 결과 입력" onclick="App.actionDefect(${d.defect_id})"><i class="fas fa-tools"></i> 조치</button>
+                                        ` : ''}
                                         <button class="btn" style="padding: 0.4rem; color: var(--accent)" onclick="App.editDefect(${d.defect_id})"><i class="fas fa-edit"></i></button>
                                         ${this.state.currentRole === '관리자' ? `
                                             <button class="btn" style="padding: 0.4rem; color: var(--error)" onclick="App.deleteDefect(${d.defect_id})"><i class="fas fa-trash"></i></button>
@@ -1520,22 +1522,24 @@ window.App = {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
-                            <label>등록자 (테스터) (필수)</label>
-                            <select name="creator" required>
+                            <label>등록자 (테스터) (필수) ${this.state.currentRole === '관리자' ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
+                            <select name="creator" required ${this.state.currentRole === '관리자' ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
                                 ${this.state.users.filter(u => u.status === '사용').map(u => `
                                     <option value="${this.sanitize(u.name)}" ${(item.creator || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
+                            ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="creator" value="${this.sanitize(item.creator || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
                         </div>
                         <div class="form-group">
-                            <label>담당자 (조치자)</label>
-                            <select name="assignee">
+                            <label>담당자 (조치자) ${this.state.currentRole === '관리자' ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
+                            <select name="assignee" ${this.state.currentRole === '관리자' ? '' : 'disabled'}>
                                 <option value="">선택 안함</option>
                                 ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
                                     <option value="${this.sanitize(u.name)}" ${item.assignee === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
+                            ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
                         </div>
                     </div>
 
@@ -1659,8 +1663,14 @@ window.App = {
 
             <form id="actionForm">
                 <div class="form-group">
-                    <label>조치자 (Assignee)</label>
-                    <input type="text" name="assignee" value="${this.sanitize(item.assignee || (this.state.currentUser ? this.state.currentUser.name : ''))}" required placeholder="조치 담당자 이름을 입력하세요">
+                    <label>담당자 (조치자) (필수) ${this.state.currentRole === '관리자' ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
+                    <select name="assignee" required ${this.state.currentRole === '관리자' || (!item.assignee || (this.state.currentUser && item.assignee === this.state.currentUser.name)) ? '' : 'disabled'}>
+                        <option value="">선택하세요</option>
+                        ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
+                            <option value="${this.sanitize(u.name)}" ${(item.assignee || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
+                        `).join('')}
+                    </select>
+                    ${!(this.state.currentRole === '관리자' || (!item.assignee || (this.state.currentUser && item.assignee === this.state.currentUser.name))) ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
                 </div>
 
                 <div class="form-group">
