@@ -8,7 +8,7 @@ const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const IMAGES_DIR = path.join(__dirname, 'images');
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(__dirname));
 app.use('/images', express.static(IMAGES_DIR));
 
 // SECURITY: Minimal middleware to prevent basic header sniffing

@@ -4,7 +4,7 @@
 
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 
-const App = {
+window.App = {
     state: {
         currentView: 'dashboard',
         defects: [],
@@ -95,12 +95,22 @@ const App = {
                 document.body.classList.add('logged-in');
             }
 
-            // Load Settings
-            const savedSettings = localStorage.getItem('app_settings');
-            if (savedSettings) {
-                const parsed = JSON.parse(savedSettings);
-                // Respect saved settings, but merge other properties if any.
-                this.state.settings = { ...this.state.settings, ...parsed };
+            // Load Settings (Global via DB or LocalStorage as fallback)
+            try {
+                const dbSettings = await StorageService.getAppSettings();
+                if (dbSettings) {
+                    this.state.settings = { ...this.state.settings, ...dbSettings };
+                    console.log("[App] Settings loaded from Supabase.");
+                } else {
+                    const savedSettings = localStorage.getItem('app_settings');
+                    if (savedSettings) {
+                        const parsed = JSON.parse(savedSettings);
+                        this.state.settings = { ...this.state.settings, ...parsed };
+                        console.log("[App] Settings loaded from LocalStorage (fallback).");
+                    }
+                }
+            } catch (err) {
+                console.error("[App] Failed to load settings from DB:", err);
             }
 
             this.bindEvents();
@@ -296,7 +306,7 @@ const App = {
         // Admin Menus
         const adminMenu = document.getElementById('adminOnlyMenus');
         if (adminMenu) {
-            adminMenu.style.display = (loggedIn && user.role === '관리자') ? 'block' : 'none';
+            adminMenu.style.display = (loggedIn && user && user.role === '관리자') ? 'block' : 'none';
         }
 
         // Login/User Section
@@ -585,7 +595,9 @@ const App = {
             this.state.currentUser = null;
             this.state.currentRole = '테스터';
             localStorage.removeItem('currentUser');
-            this.navigate('login');
+            // Clear hash and reload for a completely clean state
+            window.location.hash = 'login';
+            window.location.reload();
         }
     },
 
@@ -747,13 +759,25 @@ const App = {
         };
     },
 
-    updateSettings(newSettings) {
+    async updateSettings(newSettings) {
         this.state.settings = { ...this.state.settings, ...newSettings };
+        
+        // 1. Sync to LocalStorage (Immediate UI feedback fallback)
         localStorage.setItem('app_settings', JSON.stringify(this.state.settings));
 
-        // Refresh data and re-render
+        // 2. Sync to Global DB (Supabase)
+        try {
+            const success = await StorageService.saveAppSettings(this.state.settings);
+            if (!success) {
+                console.warn("[App] Could not save settings to DB. Persistent only in local browser session.");
+            }
+        } catch (err) {
+            console.error("[App] Error saving settings to Supabase:", err);
+        }
+
+        // Refresh calculations and UI
         this.calculateStats();
-        alert('설정이 저장되었습니다.');
+        alert('설정이 전역적으로 저장되었습니다.');
         this.render();
     },
 

@@ -51,7 +51,22 @@ CREATE TABLE defects (
 );
 ```
 
-## 3. 주요 설계 특징 및 제약 조건
+## 3. 애플리케이션 설정 테이블 (app_settings)
+
+시스템의 전역 설정 정보를 Key-Value 형태로 관리합니다.
+
+```sql
+CREATE TABLE app_settings (
+    key          VARCHAR(100) PRIMARY KEY,      -- 설정 키 (예: 'global_config')
+    value        JSONB NOT NULL,                -- JSON 형태의 설정 값
+    updated_at   TIMESTAMPTZ DEFAULT NOW()      -- 수정일
+);
+
+-- 초기 데이터 예시 (모든 테스트 구분 활성화)
+-- INSERT INTO app_settings (key, value) VALUES ('global_config', '{"enabledTestTypes": ["선오픈", "통합테스트", "3자테스트(I&C)", "3자테스트(W2)", "단위테스트"]}');
+```
+
+## 4. 주요 설계 특징 및 제약 조건
 
 *   **인증 보안**: `password` 필드는 클라이언트 측에서 `bcryptjs`를 통해 해싱된 값만 저장하며, 일반 텍스트는 서버로 전달되지 않습니다.
 *   **결함식별**: `defect_identification` 필드는 현업/개발 간의 의사소통을 위해 추가되었으며, 조치자 및 관리자만 수정 권한을 가집니다.
