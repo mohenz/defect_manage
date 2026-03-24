@@ -178,47 +178,53 @@ window.App = {
 
     async fetchData() {
         console.log("[App] Fetching data from Supabase...");
+        
+        // Show loader if possible
+        const root = document.getElementById('app');
+        if (root && root.innerHTML === '') {
+            root.innerHTML = '<div class="loader">Loading...</div>';
+        }
+
         try {
-            // 개별 페칭에 try-catch를 적용하여 비인증 상태(Standalone 등록 등)에서도 앱이 죽지 않게 함
+            // 1. Fetch Summary for Dashboard Stats (Lightweight)
             try {
-                this.state.defects = await StorageService.getDefects();
+                this.state.allDefectsSummary = await StorageService.getDefectsSummaryForStats();
+                console.log(`[App] Stats summary loaded: ${this.state.allDefectsSummary.length} items.`);
             } catch (e) {
-                console.warn("[App] Could not fetch defects (may need login):", e.message);
-                this.state.defects = this.state.defects || [];
+                console.warn("[App] Stats summary fetch failed:", e.message);
+                this.state.allDefectsSummary = [];
+            }
+
+            // 2. Fetch Paged Data for List View (Current Page)
+            try {
+                const filters = this.state.listConfig.search || {};
+                const pageResult = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, filters);
+                this.state.defects = pageResult.data;
+                this.state.totalDefectCount = pageResult.totalCount;
+                console.log(`[App] Paged defects loaded. Page ${this.state.listConfig.page}, Items: ${this.state.defects.length}/${this.state.totalDefectCount}`);
+            } catch (e) {
+                console.warn("[App] Paged defects fetch failed:", e.message);
+                this.state.defects = [];
+                this.state.totalDefectCount = 0;
             }
 
             try {
                 this.state.users = await StorageService.getUsers();
             } catch (e) {
-                console.warn("[App] Could not fetch users (may need login):", e.message);
-                this.state.users = this.state.users || [];
+                console.warn("[App] Users fetch failed:", e.message);
+                this.state.users = [];
             }
-
-            console.log(`[App] Data loaded. Defects: ${this.state.defects.length}, Users: ${this.state.users.length}`);
 
             this.calculateStats();
             this.render();
 
-            // Handle initial routing after data is ready (if not already handled)
+            // Handle initial routing after data is ready
             if (!this.state.initialRouteHandled) {
                 const hash = window.location.hash.substring(1);
-                const isStandaloneRegister = this.state.isStandalone && hash === 'register';
-
-                if (this.state.isLoggedIn || isStandaloneRegister) {
-                    if (hash === 'register') {
-                        this.showRegisterModal();
-                    } else if (['dashboard', 'list', 'users'].includes(hash)) {
-                        this.navigate(hash);
-                    }
+                if (this.state.isLoggedIn || (this.state.isStandalone && hash === 'register')) {
+                    this.navigate(hash || 'dashboard');
                     this.state.initialRouteHandled = true;
                 }
-            }
-
-            // Re-render modal if open to populate data (like users list)
-            if (this.state.currentModal === 'register') {
-                this.showRegisterModal();
-            } else if (this.state.currentModal === 'edit') {
-                this.editDefect(this.state.editingId);
             }
         } catch (err) {
             console.error("[App] FetchData failed:", err);
@@ -226,7 +232,10 @@ window.App = {
     },
 
     calculateStats() {
-        const d = this.getFilteredDefects();
+        // Use allDefectsSummary (minimal data) instead of current page
+        const types = this.state.settings.enabledTestTypes;
+        const d = this.state.allDefectsSummary.filter(d => types.includes(d.test_type || '단위테스트'));
+        
         this.state.stats = {
             total: d.length,
             open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
@@ -838,9 +847,12 @@ window.App = {
 
     renderDashboard(container) {
         const stats = this.state.stats;
-        const defects = this.getFilteredDefects();
+        // All necessary summary data is now in state.allDefectsSummary
+        const defects = this.state.allDefectsSummary.filter(d => 
+            this.state.settings.enabledTestTypes.includes(d.test_type || '단위테스트')
+        );
 
-        // 등록자별/심각도별 통계 계산
+        // 1. 등록자별/심각도별 통계 계산
         const creatorStats = {};
         const grandTotal = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
 
@@ -857,6 +869,25 @@ window.App = {
             }
         });
         const sortedCreators = Object.entries(creatorStats).sort((a, b) => b[1].total - a[1].total);
+
+        // 2. 테스트 구분별 통계 계산 (NEW)
+        const testTypeStats = {};
+        const testTypeGrandTotal = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+
+        defects.forEach(d => {
+            const type = d.test_type || '단위테스트';
+            if (!testTypeStats[type]) {
+                testTypeStats[type] = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+            }
+            testTypeStats[type].total++;
+            testTypeGrandTotal.total++;
+            if (testTypeStats[type][d.severity] !== undefined) {
+                testTypeStats[type][d.severity]++;
+                testTypeGrandTotal[d.severity]++;
+            }
+        });
+        const sortedTestTypes = Object.entries(testTypeStats).sort((a, b) => b[1].total - a[1].total);
+
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -899,6 +930,48 @@ window.App = {
                 </div>
             </div>
 
+            <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-microscope"></i> 테스트 구분별 결함 현황 (심각도별)</h2>
+                <div class="data-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>테스트 구분</th>
+                                <th style="text-align: center;">전체 건수</th>
+                                <th style="text-align: center; color: var(--error);">Critical</th>
+                                <th style="text-align: center; color: var(--warning);">Major</th>
+                                <th style="text-align: center; color: var(--accent);">Minor</th>
+                                <th style="text-align: center; color: var(--success);">Simple</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedTestTypes.map(([type, s]) => `
+                                <tr>
+                                    <td><strong>${this.sanitize(type)}</strong></td>
+                                    <td style="text-align: center;"><strong>${s.total}</strong></td>
+                                    <td style="text-align: center;">${s.Critical}</td>
+                                    <td style="text-align: center;">${s.Major}</td>
+                                    <td style="text-align: center;">${s.Minor}</td>
+                                    <td style="text-align: center;">${s.Simple}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                        </tbody>
+                        ${sortedTestTypes.length > 0 ? `
+                        <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
+                            <tr>
+                                <td style="padding: 1rem;">합계 (Total)</td>
+                                <td style="text-align: center; padding: 1rem;">${testTypeGrandTotal.total}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}</td>
+                            </tr>
+                        </tfoot>
+                        ` : ''}
+                    </table>
+                </div>
+            </div>
+
             <div class="form-container animate-in" style="max-width: 100%;">
                 <h2 style="margin-bottom: 1.5rem;">최근 등록된 결함</h2>
                 <div class="data-table-container">
@@ -915,7 +988,7 @@ window.App = {
                         <tbody>
                             ${defects
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 20)
+                .slice(0, 10)
                 .map(d => `
                                 <tr>
                                     <td><strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${(d.test_type || '단위테스트').substring(0, 2)}] ${this.sanitize(d.title)}</strong></td>
@@ -931,7 +1004,7 @@ window.App = {
             </div>
 
             <div class="form-container animate-in" style="max-width: 100%; margin-top: 2rem;">
-                <h2 style="margin-bottom: 1.5rem;">등록자별 결함 통계 (심각도별)</h2>
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-users-viewfinder"></i> 등록자별 결함 통계 (심각도별)</h2>
                 <div class="data-table-container">
                     <table>
                         <thead>
@@ -980,11 +1053,11 @@ window.App = {
         const statusMap = {
             'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Closed': '종료', 'Reopened': '재오픈'
         };
-        let totalDefects = 0;
+        let totalDefectsCount = 0;
         defects.forEach(d => {
             if (statusCounts[d.status] !== undefined) {
                 statusCounts[d.status]++;
-                totalDefects++;
+                totalDefectsCount++;
             }
         });
 
@@ -996,7 +1069,7 @@ window.App = {
                     labels: ['전체'],
                     datasets: Object.keys(statusCounts).map((status, index) => {
                         const count = statusCounts[status];
-                        const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
+                        const percentage = totalDefectsCount > 0 ? (count / totalDefectsCount * 100).toFixed(1) : 0;
                         const colors = [
                             '#fbbf24', '#f59e0b', '#10b981', '#6b7280', '#ef4444'
                         ];
@@ -1063,7 +1136,7 @@ window.App = {
                     labels: ['전체'],
                     datasets: Object.keys(severityCounts).map((sev, index) => {
                         const count = severityCounts[sev];
-                        const percentage = totalDefects > 0 ? (count / totalDefects * 100).toFixed(1) : 0;
+                        const percentage = totalDefectsCount > 0 ? (count / totalDefectsCount * 100).toFixed(1) : 0;
                         const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
 
                         return {
@@ -1099,54 +1172,12 @@ window.App = {
 
     renderList(container) {
         const config = this.state.listConfig;
-        // Ensure search object exists, initialize if not
-        if (!config.search) {
-            config.search = {
-                severity: '',
-                status: '',
-                creator: '',
-                assignee: '',
-                testType: '',
-                dateStart: '',
-                dateEnd: '',
-                identification: ''
-            };
-        }
         const search = config.search;
-        const defects = this.getFilteredDefects();
-
-        // Filtering logic
-        let filtered = defects.filter(d => {
-            const matchesSeverity = !search.severity || d.severity === search.severity;
-            const matchesStatus = !search.status || d.status === search.status;
-            const matchesCreator = !search.creator || d.creator.includes(search.creator);
-            const matchesAssignee = !search.assignee || (d.assignee && d.assignee.includes(search.assignee));
-            const matchesTestType = !search.testType || (d.test_type || '단위테스트') === search.testType;
-
-            const matchesIdentification = !search.identification || d.defect_identification === search.identification;
-
-            let matchesDate = true;
-            if (search.dateStart || search.dateEnd) {
-                const date = new Date(d.created_at);
-                if (search.dateStart) {
-                    const startDate = new Date(search.dateStart);
-                    startDate.setHours(0, 0, 0, 0); // Start of day KST
-                    if (date < startDate) matchesDate = false;
-                }
-                if (search.dateEnd) {
-                    const endDate = new Date(search.dateEnd);
-                    endDate.setHours(23, 59, 59, 999); // End of day KST
-                    if (date > endDate) matchesDate = false;
-                }
-            }
-            return matchesSeverity && matchesStatus && matchesCreator && matchesAssignee && matchesTestType && matchesIdentification && matchesDate;
-        }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-        // Pagination logic
-        const totalItems = filtered.length;
+        
+        // pagedData: Now already fetched from server
+        const pagedData = this.state.defects;
+        const totalItems = this.state.totalDefectCount;
         const totalPages = Math.ceil(totalItems / config.pageSize);
-        const startIndex = (config.page - 1) * config.pageSize;
-        const pagedData = filtered.slice(startIndex, startIndex + config.pageSize);
 
         container.innerHTML = `
             <header class="animate-in">
@@ -1312,8 +1343,8 @@ window.App = {
             dateEnd: document.getElementById('searchDateEnd').value,
             identification: document.getElementById('searchIdentification').value
         };
-        this.state.listConfig.page = 1; // Reset to first page on search
-        this.render();
+        this.state.listConfig.page = 1; 
+        this.fetchData(); // Trigger server-side fetch on search change
     },
 
     resetFilters() {
@@ -1334,12 +1365,12 @@ window.App = {
     handlePageSizeChange() {
         this.state.listConfig.pageSize = parseInt(document.getElementById('pageSizeSelect').value);
         this.state.listConfig.page = 1;
-        this.render();
+        this.fetchData(); // Trigger server-side fetch
     },
 
     changePage(p) {
         this.state.listConfig.page = p;
-        this.render();
+        this.fetchData(); // Trigger server-side fetch
     },
 
     downloadExcel() {

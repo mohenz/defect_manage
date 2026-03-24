@@ -19,19 +19,53 @@ const StorageService = {
         console.log("[Storage] StorageService ready.");
     },
 
-    async getDefects() {
-        console.log("[Storage] Requesting defects list...");
-        const { data, error } = await supabaseClient
+    async getDefects(page = 1, pageSize = 20, filters = {}) {
+        console.log(`[Storage] Requesting defects (Page: ${page}, Size: ${pageSize}, Filters:`, filters, ")");
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+
+        let query = supabaseClient
             .from('defects')
-            .select('*')
-            .eq('is_deleted', 'N')
-            .order('created_at', { ascending: false });
+            .select('*', { count: 'exact' })
+            .eq('is_deleted', 'N');
+
+        // Apply filters
+        if (filters.severity) query = query.eq('severity', filters.severity);
+        if (filters.status) query = query.eq('status', filters.status);
+        if (filters.testType) query = query.eq('test_type', filters.testType);
+        if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
+        if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
+        
+        if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
+        if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
+
+        const { data, error, count } = await query
+            .order('created_at', { ascending: false })
+            .range(from, to);
 
         if (error) {
             console.error("[Storage] Error fetching defects:", error.message, error.details);
             throw error;
         }
-        console.log("[Storage] Defects fetched successfully.");
+        console.log(`[Storage] Defects fetched with filters. Found total ${count} items.`);
+        return { data, totalCount: count };
+    },
+
+    /**
+     * Get minimal defect data for dashboard stats to reduce payload size
+     */
+    async getDefectsSummaryForStats() {
+        console.log("[Storage] Fetching minimal data for stats...");
+        const { data, error } = await supabaseClient
+            .from('defects')
+            .select('defect_id, title, status, severity, test_type, creator, created_at')
+            .eq('is_deleted', 'N');
+
+        if (error) {
+            console.error("[Storage] Error fetching stats summary:", error.message);
+            throw error;
+        }
         return data;
     },
 
