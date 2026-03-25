@@ -5,6 +5,11 @@
 
 DefectFlow is a web-based defect management tool that uses Supabase for data management.
 
+## Documentation
+- Korean overview: [docs/README_ko.md](./docs/README_ko.md)
+- Technical docs index: [docs/README.md](./docs/README.md)
+- Workspace setup guide: [docs/workspace_setup_guide.md](./docs/workspace_setup_guide.md)
+
 ## 📁 Tech Stack
 - **Frontend**: HTML, JavaScript (Vanilla), CSS
 - **Backend**: [Supabase](https://supabase.com/) (PostgreSQL, Auth, Storage)
