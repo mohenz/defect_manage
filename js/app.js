@@ -930,7 +930,7 @@ window.App = {
         });
         const sortedTestTypes = Object.entries(testTypeStats).sort((a, b) => b[1].total - a[1].total);
 
-        // 3. 결함 상태 현황 계산 (테스트 구분별)
+        // 3. 결함 조치 현황 계산 (테스트 구분별)
         const statusStats = {};
         const statusGrandTotal = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Closed: 0, Reopened: 0 };
 
@@ -1003,7 +1003,7 @@ window.App = {
             </div>
 
             <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
-                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-chart-bar"></i> 결함 상태 현황 (테스트 구분별)</h2>
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-chart-bar"></i> 결함 조치 현황 (테스트 구분별)</h2>
                 <div class="data-table-container">
                     <table>
                         <thead>
