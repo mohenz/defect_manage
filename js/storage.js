@@ -71,7 +71,7 @@ const StorageService = {
             return [];
         }
     },
-\n
+
     async getDefectsSummaryForStats() {
         console.log("[Storage] Fetching stats summary with timeout...");
         const timeoutPromise = new Promise((_, reject) => {

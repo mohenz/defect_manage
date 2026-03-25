@@ -116,6 +116,17 @@ window.App = {
                 this.navigate(hash);
             }
         });
+
+        document.addEventListener('click', (event) => {
+            const navItem = event.target.closest('.nav-item');
+            if (!navItem) return;
+
+            const view = navItem.dataset.view;
+            if (!view) return;
+
+            event.preventDefault();
+            this.navigate(view);
+        });
     },
 
 
