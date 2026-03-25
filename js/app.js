@@ -5,6 +5,11 @@
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 
 window.App = {
+    // --- Utils ---
+    pct(val, total) {
+        return total > 0 ? Math.round(val / total * 100) : 0;
+    },
+
     // --- Common Codes Helpers ---
     getCodesByGroup(group) {
         if (!this.state.commonCodes) return [];
@@ -202,6 +207,15 @@ window.App = {
                 }
             });
 
+            // 2. Load Common Codes (Added for Phase 3-1)
+            try {
+                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                console.log("[App] Common codes loaded:", this.state.commonCodes.length);
+            } catch (err) {
+                console.error("[App] Failed to load common codes:", err);
+                this.state.commonCodes = [];
+            }
+
             await this.fetchData();
 
             // Handle Initial Routing
@@ -300,7 +314,7 @@ window.App = {
         this.state.stats = {
             total: d.length,
             open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
-            resolved: d.filter(x => x.status === 'Resolved' || x.status === 'Staging' || x.status === 'Closed').length,
+            resolved: d.filter(x => ['Resolved', 'Staging', 'Closed'].includes(x.status)).length,
             critical: d.filter(x => x.severity === 'Critical').length
         };
     },
@@ -909,17 +923,19 @@ window.App = {
         const stats = this.state.stats;
         // All necessary summary data is now in state.allDefectsSummary
         const defects = this.state.allDefectsSummary.filter(d =>
-            this.state.settings.enabledTestTypes.includes(d.test_type || '단위테스트')
+            this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트'))
         );
 
         // 1. 등록자별/심각도별 통계 계산
         const creatorStats = {};
-        const grandTotal = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+        const grandTotal = { total: 0 };
+        this.getCodesByGroup('SEVERITY').forEach(c => grandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const creator = d.creator || '미지정';
             if (!creatorStats[creator]) {
-                creatorStats[creator] = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+                creatorStats[creator] = { total: 0 };
+                this.getCodesByGroup('SEVERITY').forEach(c => creatorStats[creator][c.code_value] = 0);
             }
             creatorStats[creator].total++;
             grandTotal.total++;
@@ -932,12 +948,14 @@ window.App = {
 
         // 2. 테스트 구분별 통계 계산 (NEW)
         const testTypeStats = {};
-        const testTypeGrandTotal = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+        const testTypeGrandTotal = { total: 0 };
+        this.getCodesByGroup('SEVERITY').forEach(c => testTypeGrandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (!testTypeStats[type]) {
-                testTypeStats[type] = { total: 0, Critical: 0, Major: 0, Minor: 0, Simple: 0 };
+                testTypeStats[type] = { total: 0 };
+                this.getCodesByGroup('SEVERITY').forEach(c => testTypeStats[type][c.code_value] = 0);
             }
             testTypeStats[type].total++;
             testTypeGrandTotal.total++;
@@ -969,7 +987,7 @@ window.App = {
         const sortedStatusTypes = Object.entries(statusStats).sort((a, b) => b[1].total - a[1].total);
 
         // 비중(%) 계산 헬퍼
-        const pct = (val, total) => total > 0 ? Math.round(val / total * 100) : 0;
+        
 
         container.innerHTML = `
             <header class="animate-in">
@@ -1025,46 +1043,42 @@ window.App = {
             <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
                 <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-chart-bar"></i> 결함 조치 현황 (테스트 구분별)</h2>
                 <div class="data-table-container">
-                    <table>
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>테스트 구분</th>
                                 <th style="text-align: center;">전체 건수</th>
-                                <th style="text-align: center; color: var(--warning);">접수 (Open)</th>
-                                <th style="text-align: center; color: #38bdf8;">조치 중 (In Progress)</th>
-                                <th style="text-align: center; color: var(--success);">조치 완료 (Resolved)</th>
-                                <th style="text-align: center; color: #a78bfa;">스테이징 (Staging)</th>
-                                <th style="text-align: center; color: var(--text-secondary);">종료 (Closed)</th>
-                                <th style="text-align: center; color: var(--error);">재오픈 (Reopened)</th>
+                                ${this.getCodesByGroup('STATUS').map(c => `
+                                    <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name} (${c.code_value})</th>
+                                `).join('')}
                             </tr>
                         </thead>
                         <tbody>
                             ${sortedStatusTypes.map(([type, s]) => `
                                 <tr>
-                                    <td><strong>${this.sanitize(type)}</strong></td>
+                                    <td><strong>${this.getCodeName('TEST_TYPE', type)}</strong></td>
                                     <td style="text-align: center;"><strong>${s.total}</strong></td>
                                     ${this.getCodesByGroup('STATUS').map(c => `
-                                    <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
-                                `).join('')}
-                                    <td style="text-align: center;">${s['Reopened']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Reopened'], s.total) + '%)</span>' : ''}</td>
+                                        <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
+                                    `).join('')}
                                 </tr>
-                            `).join('') || '<tr><td colspan="7" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                            `).join('') || '<tr><td colspan="10" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
                         </tbody>
                         ${sortedStatusTypes.length > 0 ? `
                         <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
                             <tr>
                                 <td style="padding: 1rem;">합계 (Total)</td>
                                 <td style="text-align: center; padding: 1rem;">${statusGrandTotal.total}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${statusGrandTotal['Open']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Open'], statusGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: #38bdf8;">${statusGrandTotal['In Progress']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['In Progress'], statusGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--success);">${statusGrandTotal['Resolved']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Resolved'], statusGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: #a78bfa;">${statusGrandTotal['Staging']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Staging'], statusGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">${statusGrandTotal['Closed']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Closed'], statusGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--error);">${statusGrandTotal['Reopened']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Reopened'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                ${this.getCodesByGroup('STATUS').map(c => `
+                                    <td style="text-align: center; padding: 1rem; color: ${c.color || 'inherit'};">
+                                        ${statusGrandTotal[c.code_value]}${statusGrandTotal.total > 0 ? ` <span style="font-size:0.8rem;opacity:0.8;">(${this.pct(statusGrandTotal[c.code_value], statusGrandTotal.total)}%)</span>` : ''}
+                                    </td>
+                                `).join('')}
                             </tr>
                         </tfoot>
                         ` : ''}
                     </table>
+                </div>
                 </div>
             </div>
 
@@ -1076,21 +1090,19 @@ window.App = {
                             <tr>
                                 <th>테스트 구분</th>
                                 <th style="text-align: center;">전체 건수</th>
-                                <th style="text-align: center; color: var(--error);">Critical</th>
-                                <th style="text-align: center; color: var(--warning);">Major</th>
-                                <th style="text-align: center; color: var(--accent);">Minor</th>
-                                <th style="text-align: center; color: var(--success);">Simple</th>
+                                ${this.getCodesByGroup('SEVERITY').map(c => `
+                                    <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name}</th>
+                                `).join('')}
                             </tr>
                         </thead>
                         <tbody>
                             ${sortedTestTypes.map(([type, s]) => `
                                 <tr>
-                                    <td><strong>${this.sanitize(type)}</strong></td>
+                                    <td><strong>${this.getCodeName('TEST_TYPE', type)}</strong></td>
                                     <td style="text-align: center;"><strong>${s.total}</strong></td>
-                                    <td style="text-align: center;">${s.Critical}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Critical, s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s.Major}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Major, s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s.Minor}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Minor, s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s.Simple}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Simple, s.total) + '%)</span>' : ''}</td>
+                                    ${this.getCodesByGroup('SEVERITY').map(c => `
+                                    <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
+                                `).join('')}
                                 </tr>
                             `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
                         </tbody>
@@ -1129,9 +1141,9 @@ window.App = {
                 .slice(0, 10)
                 .map(d => `
                                 <tr>
-                                    <td><strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${(d.test_type || '단위테스트').substring(0, 2)}] ${this.sanitize(d.title)}</strong></td>
-                                    <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
-                                    <td>${d.status}</td>
+                                    <td><strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${this.getCodeName('TEST_TYPE', d.test_type).substring(0, 2)}] ${this.sanitize(d.title)}</strong></td>
+                                    <td><span class="badge" style="background-color: ${this.getCodeColor('SEVERITY', d.severity) || '#64748b'}; color: white;">${this.getCodeName('SEVERITY', d.severity)}</span></td>
+                                    <td><span class="badge" style="background-color: ${this.getCodeColor('STATUS', d.status) || '#64748b'}; color: white;">${this.getCodeName('STATUS', d.status)}</span></td>
                                     <td>${this.sanitize(d.creator)}</td>
                                     <td>${this.formatDateKST(d.created_at)}</td>
                                 </tr>
@@ -1149,10 +1161,9 @@ window.App = {
                             <tr>
                                 <th>등록자</th>
                                 <th style="text-align: center;">전체 건수</th>
-                                <th style="text-align: center; color: var(--error);">Critical</th>
-                                <th style="text-align: center; color: var(--warning);">Major</th>
-                                <th style="text-align: center; color: var(--accent);">Minor</th>
-                                <th style="text-align: center; color: var(--success);">Simple</th>
+                                ${this.getCodesByGroup('SEVERITY').map(c => `
+                                    <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name}</th>
+                                `).join('')}
                             </tr>
                         </thead>
                         <tbody>
@@ -1428,14 +1439,14 @@ window.App = {
                         ${pagedData.map(d => `
                             <tr>
                                 <td>#${d.defect_id}</td>
-                                <td>${d.test_type || '단위테스트'}</td>
+                                <td>${this.getCodeName('TEST_TYPE', d.test_type)}</td>
                                 <td style="max-width:250px; white-space:normal;">
-                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${(d.test_type || '단위테스트').substring(0, 2)}] ${this.sanitize(d.title)}</strong>
+                                    <strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${this.getCodeName('TEST_TYPE', d.test_type).substring(0, 2)}] ${this.sanitize(d.title)}</strong>
                                 </td>
-                                <td><span class="badge" style="background: var(--bg-secondary); color: var(--text-main);">${d.defect_identification || '-'}</span></td>
-                                <td><span class="badge badge-${d.severity.toLowerCase()}">${d.severity}</span></td>
-                                <td>${d.priority}</td>
-                                <td>${d.status}</td>
+                                <td><span class="badge" style="background-color: ${this.getCodeColor('IDENTIFICATION', d.defect_identification) || 'var(--bg-secondary)'}; color: white;">${this.getCodeName('IDENTIFICATION', d.defect_identification)}</span></td>
+                                <td><span class="badge" style="background-color: ${this.getCodeColor('SEVERITY', d.severity) || '#64748b'}; color: white;">${this.getCodeName('SEVERITY', d.severity)}</span></td>
+                                <td>${this.getCodeName('PRIORITY', d.priority)}</td>
+                                <td><span class="badge" style="background-color: ${this.getCodeColor('STATUS', d.status) || '#64748b'}; color: white;">${this.getCodeName('STATUS', d.status)}</span></td>
                                 <td>${this.sanitize(d.menu_name || '-')}/${this.sanitize(d.screen_name || '-')}</td>
                                 <td>${this.sanitize(d.creator || '-')}</td>
                                 <td>${this.sanitize(d.assignee || '-')}</td>
@@ -1649,10 +1660,7 @@ window.App = {
                         <div class="form-group">
                             <label>심각도</label>
                             <select name="severity" ${(!id || this.state.currentRole === '관리자' || (this.state.currentUser && item.creator === this.state.currentUser.name)) ? '' : 'disabled'}>
-                                <option value="Critical" ${item.severity === 'Critical' ? 'selected' : ''}>Critical</option>
-                                <option value="Major" ${item.severity === 'Major' ? 'selected' : ''}>Major</option>
-                                <option value="Minor" ${item.severity === 'Minor' ? 'selected' : (item.severity ? '' : 'selected')}>Minor</option>
-                                <option value="Simple" ${item.severity === 'Simple' ? 'selected' : ''}>Simple</option>
+                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" \${item.severity === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                             ${(id && this.state.currentRole !== '관리자' && (this.state.currentUser && item.creator !== this.state.currentUser.name)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 심각도는 작성자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
@@ -1759,11 +1767,7 @@ window.App = {
                             <label>결함식별 (조치자/관리자 전용)</label>
                             <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
-                                <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
-                                <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
-                                <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
-                                <option value="본오픈대상" ${item.defect_identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
-                                <option value="결함아님" ${item.defect_identification === '결함아님' ? 'selected' : ''}>결함아님</option>
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" \${item.defect_identification === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                             ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
@@ -1850,14 +1854,10 @@ window.App = {
                     </div>
                     <div class="form-group">
                         <label>결함식별 (필수)</label>
-                        <select name="defect_identification" required>
-                            <option value="">선택하세요</option>
-                            <option value="기존결함" ${item.defect_identification === '기존결함' ? 'selected' : ''}>기존결함</option>
-                            <option value="협의필요" ${item.defect_identification === '협의필요' ? 'selected' : ''}>협의필요</option>
-                            <option value="신규요구사항" ${item.defect_identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
-                            <option value="본오픈대상" ${item.defect_identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
-                            <option value="결함아님" ${item.defect_identification === '결함아님' ? 'selected' : ''}>결함아님</option>
-                        </select>
+                        <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
+                                <option value="">선택하세요</option>
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" \${item.defect_identification === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
                     </div>
                 </div>
 
@@ -1874,7 +1874,16 @@ window.App = {
 
             if (await StorageService.saveDefect(payload, id)) {
                 alert('조치 결과가 저장되었습니다.');
-                await this.fetchData();
+                // 2. Load Common Codes (Added for Phase 3-1)
+            try {
+                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                console.log("[App] Common codes loaded:", this.state.commonCodes.length);
+            } catch (err) {
+                console.error("[App] Failed to load common codes:", err);
+                this.state.commonCodes = [];
+            }
+
+            await this.fetchData();
                 this.closeModal();
             }
         });
@@ -1899,6 +1908,15 @@ window.App = {
         if (await StorageService.saveDefect(payload, id)) {
             localStorage.removeItem('pending_defect');
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
+            // 2. Load Common Codes (Added for Phase 3-1)
+            try {
+                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                console.log("[App] Common codes loaded:", this.state.commonCodes.length);
+            } catch (err) {
+                console.error("[App] Failed to load common codes:", err);
+                this.state.commonCodes = [];
+            }
+
             await this.fetchData();
             this.closeModal();
             if (!id) this.navigate('list');
