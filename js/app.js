@@ -1900,6 +1900,25 @@ window.App = {
         document.body.removeChild(link);
     },
 
+    calculateStats() {
+        this.getFilteredDefects();
+    },
+
+    getSelectedDefect(id) {
+        return (this.state.defects || []).find(d => String(d.defect_id) === String(id))
+            || (this.state.allDefectsSummary || []).find(d => String(d.defect_id) === String(id))
+            || null;
+    },
+
+    getEffectiveRole() {
+        return this.state.currentRole || this.state.currentUser?.role || '테스터';
+    },
+
+    canEditAssignee() {
+        const role = this.getEffectiveRole();
+        return role === '관리자' || role === '조치자';
+    },
+
     sanitize(str) {
         if (!str) return '';
         return str.replace(/[&<>"']/g, function (m) {
