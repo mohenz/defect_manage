@@ -18,6 +18,26 @@ const StorageService = {
     init() {
         console.log("[Storage] StorageService ready.");
     },
+    /**
+     * Fetch all active common codes from the database
+     */
+    async fetchCommonCodes() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('common_codes')
+                .select('*')
+                .eq('is_active', true)
+                .order('group_code', { ascending: true })
+                .order('sort_order', { ascending: true });
+
+            if (error) throw error;
+            return data;
+        } catch (err) {
+            console.error('[StorageService] Failed to fetch common codes:', err);
+            return [];
+        }
+    },
+
 
     async getDefects(page = 1, pageSize = 20, filters = {}) {
         console.log(`[Storage] Requesting defects (Page: ${page}, Size: ${pageSize}, Filters:`, filters, ")");

@@ -5,6 +5,24 @@
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 
 window.App = {
+    // --- Common Codes Helpers ---
+    getCodesByGroup(group) {
+        if (!this.state.commonCodes) return [];
+        return this.state.commonCodes.filter(c => c.group_code === group);
+    },
+
+    getCodeName(group, value) {
+        const codes = this.getCodesByGroup(group);
+        const code = codes.find(c => c.code_value === value);
+        return code ? code.code_name : value;
+    },
+
+    getCodeColor(group, value) {
+        const codes = this.getCodesByGroup(group);
+        const code = codes.find(c => c.code_value === value);
+        return code ? code.color : null;
+    },
+
     state: {
         currentView: 'dashboard',
         defects: [],
@@ -34,7 +52,8 @@ window.App = {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
         pendingDefectData: null, // Stores data received via postMessage for cross-domain support
-        selectedDefect: null
+        selectedDefect: null,
+        commonCodes: []
     },
 
     getFilteredDefects() {
@@ -737,9 +756,8 @@ window.App = {
                 <div class="form-group">
                     <label>상태</label>
                     <select name="status">
-                        <option value="사용" ${user.status === '사용' ? 'selected' : ''}>사용</option>
-                        <option value="사용중지" ${user.status === '사용중지' ? 'selected' : ''}>사용중지</option>
-                    </select>
+                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
+                            </select>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 2.5rem;">
                     <button type="submit" class="btn btn-primary" style="flex: 1;">${id ? '저장하기' : '등록하기'}</button>
@@ -932,12 +950,14 @@ window.App = {
 
         // 3. 결함 조치 현황 계산 (테스트 구분별)
         const statusStats = {};
-        const statusGrandTotal = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Staging: 0, Closed: 0, Reopened: 0 };
+        const statusGrandTotal = { total: 0 };
+        this.getCodesByGroup('STATUS').forEach(c => statusGrandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (!statusStats[type]) {
-                statusStats[type] = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Staging: 0, Closed: 0, Reopened: 0 };
+                statusStats[type] = { total: 0 };
+                this.getCodesByGroup('STATUS').forEach(c => statusStats[type][c.code_value] = 0);
             }
             statusStats[type].total++;
             statusGrandTotal.total++;
@@ -1023,11 +1043,9 @@ window.App = {
                                 <tr>
                                     <td><strong>${this.sanitize(type)}</strong></td>
                                     <td style="text-align: center;"><strong>${s.total}</strong></td>
-                                    <td style="text-align: center;">${s['Open']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Open'], s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s['In Progress']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['In Progress'], s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s['Resolved']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Resolved'], s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s['Staging']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Staging'], s.total) + '%)</span>' : ''}</td>
-                                    <td style="text-align: center;">${s['Closed']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Closed'], s.total) + '%)</span>' : ''}</td>
+                                    ${this.getCodesByGroup('STATUS').map(c => `
+                                    <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
+                                `).join('')}
                                     <td style="text-align: center;">${s['Reopened']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Reopened'], s.total) + '%)</span>' : ''}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="7" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
@@ -1318,8 +1336,8 @@ window.App = {
                         <label style="font-size: 0.75rem;">테스트 구분</label>
                         <select id="searchTestType">
                             <option value="">전체</option>
-                            ${this.state.settings.enabledTestTypes.map(t => `
-                                <option value="${t}" ${search.testType === t ? 'selected' : ''}>${t}</option>
+                            ${this.getCodesByGroup('TEST_TYPE').map(c => `
+                                <option value="${c.code_value}" ${search.testType === c.code_value ? 'selected' : ''}>${c.code_name}</option>
                             `).join('')}
                         </select>
                     </div>
@@ -1327,33 +1345,27 @@ window.App = {
                         <label style="font-size: 0.75rem;">심각도</label>
                         <select id="searchSeverity">
                             <option value="">전체</option>
-                            <option value="Critical" ${search.severity === 'Critical' ? 'selected' : ''}>Critical</option>
-                            <option value="Major" ${search.severity === 'Major' ? 'selected' : ''}>Major</option>
-                            <option value="Minor" ${search.severity === 'Minor' ? 'selected' : ''}>Minor</option>
-                            <option value="Simple" ${search.severity === 'Simple' ? 'selected' : ''}>Simple</option>
+                            ${this.getCodesByGroup('SEVERITY').map(c => `
+                                <option value="${c.code_value}" ${search.severity === c.code_value ? 'selected' : ''}>${c.code_name}</option>
+                            `).join('')}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">상태</label>
                         <select id="searchStatus">
                             <option value="">전체</option>
-                            <option value="Open" ${search.status === 'Open' ? 'selected' : ''}>Open</option>
-                            <option value="In Progress" ${search.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                            <option value="Resolved" ${search.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-                            <option value="Staging" ${search.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
-                            <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
-                            <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
+                            ${this.getCodesByGroup('STATUS').map(c => `
+                                <option value="${c.code_value}" ${search.status === c.code_value ? 'selected' : ''}>${c.code_name}</option>
+                            `).join('')}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">결함식별</label>
                         <select id="searchIdentification">
                             <option value="">전체</option>
-                            <option value="기존결함" ${search.identification === '기존결함' ? 'selected' : ''}>기존결함</option>
-                            <option value="협의필요" ${search.identification === '협의필요' ? 'selected' : ''}>협의필요</option>
-                            <option value="신규요구사항" ${search.identification === '신규요구사항' ? 'selected' : ''}>신규요구사항</option>
-                            <option value="본오픈대상" ${search.identification === '본오픈대상' ? 'selected' : ''}>본오픈대상</option>
-                            <option value="결함아님" ${search.identification === '결함아님' ? 'selected' : ''}>결함아님</option>
+                            ${this.getCodesByGroup('IDENTIFICATION').map(c => `
+                                <option value="${c.code_value}" ${search.identification === c.code_value ? 'selected' : ''}>${c.code_name}</option>
+                            `).join('')}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
@@ -1623,11 +1635,9 @@ window.App = {
                 <form id="defectForm">
                     <div class="form-group">
                         <label>테스트 구분</label>
-                        <select name="test_type">
-                            ${this.state.settings.enabledTestTypes.map(t => `
-                                <option value="${t}" ${item.test_type === t ? 'selected' : ((!item.test_type && t === '단위테스트') ? 'selected' : '')}>${t}</option>
-                            `).join('')}
-                        </select>
+                        <select name="test_type" required>
+                                ${this.getCodesByGroup('TEST_TYPE').map(c => `<option value="${c.code_value}" \${item.test_type === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
                     </div>
 
                     <div class="form-group">
@@ -1649,10 +1659,7 @@ window.App = {
                         <div class="form-group">
                             <label>우선순위</label>
                             <select name="priority">
-                                <option value="P1" ${item.priority === 'P1' ? 'selected' : ''}>P1 (Urgent)</option>
-                                <option value="P2" ${item.priority === 'P2' ? 'selected' : ''}>P2 (High)</option>
-                                <option value="P3" ${item.priority === 'P3' ? 'selected' : 'selected'}>P3 (Normal)</option>
-                                <option value="P4" ${item.priority === 'P4' ? 'selected' : ''}>P4 (Low)</option>
+                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" \${item.priority === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -1745,12 +1752,7 @@ window.App = {
                         <div class="form-group">
                             <label>변경할 상태</label>
                             <select name="status">
-                                <option value="Open" ${item.status === 'Open' ? 'selected' : ''}>Open (접수)</option>
-                                <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
-                                <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
-                                <option value="Staging" ${item.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
-                                <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
-                                <option value="Reopened" ${item.status === 'Reopened' ? 'selected' : ''}>Reopened (재오픈)</option>
+                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group">
@@ -1843,11 +1845,8 @@ window.App = {
                     <div class="form-group">
                         <label>변경할 상태</label>
                         <select name="status">
-                            <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
-                            <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
-                            <option value="Staging" ${item.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
-                            <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
-                        </select>
+                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
+                            </select>
                     </div>
                     <div class="form-group">
                         <label>결함식별 (필수)</label>
