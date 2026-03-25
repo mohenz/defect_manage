@@ -7,6 +7,26 @@ const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABAS
 
 const StorageService = {
     /**
+     * Internal: Log changes to defect_history table
+     */
+    async logHistory(defectId, action, changedBy, details = {}, before = null, after = null) {
+        try {
+            const entry = {
+                defect_id: defectId,
+                action: action, // 'CREATE', 'UPDATE'
+                status_before: before,
+                status_after: after,
+                changed_data: details,
+                changed_by: changedBy,
+                created_at: this.getISO()
+            };
+            await supabaseClient.from('defect_history').insert(entry);
+        } catch (err) {
+            console.error('[StorageService] History logging failed:', err);
+        }
+    },
+
+    /**
      * Helper: Get local ISO-like string for database storage (matching Asia/Seoul DB)
      */
     getISO() {
