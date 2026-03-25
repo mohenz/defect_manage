@@ -1354,11 +1354,11 @@ window.App = {
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">등록자</label>
-                        <input type="text" id="searchCreator" value="${search.creator}" oninput="App.handleSearchChange()" placeholder="이름 검색">
+                        <input type="text" id="searchCreator" value="${search.creator}" oninput="App.handleTextSearchChange()" placeholder="이름 검색">
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">담당자</label>
-                        <input type="text" id="searchAssignee" value="${search.assignee}" oninput="App.handleSearchChange()" placeholder="이름 검색">
+                        <input type="text" id="searchAssignee" value="${search.assignee}" oninput="App.handleTextSearchChange()" placeholder="이름 검색">
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">등록기간 (시작)</label>
@@ -1463,7 +1463,24 @@ window.App = {
             identification: document.getElementById('searchIdentification').value
         };
         this.state.listConfig.page = 1;
-        this.fetchData(); // Trigger server-side fetch on search change
+        this.fetchData(); // Trigger server-side fetch on search change (selects/dates)
+    },
+
+    // debounce: 텍스트 입력 시 연속 호출 방지 (마지막 입력 후 delay ms 뒤에만 실행)
+    _searchDebounceTimer: null,
+    handleTextSearchChange() {
+        // 상태 즉시 업데이트 (select 변경 등 다른 트리거와 값 충돌 방지)
+        const creatorEl = document.getElementById('searchCreator');
+        const assigneeEl = document.getElementById('searchAssignee');
+        if (creatorEl) this.state.listConfig.search.creator = creatorEl.value;
+        if (assigneeEl) this.state.listConfig.search.assignee = assigneeEl.value;
+
+        // 기존 타이머 취소 후 재설정 (400ms debounce)
+        clearTimeout(this._searchDebounceTimer);
+        this._searchDebounceTimer = setTimeout(() => {
+            this.state.listConfig.page = 1;
+            this.fetchData(); // 입력 멈춘 후 400ms 뒤 API 호출
+        }, 400);
     },
 
     resetFilters() {
