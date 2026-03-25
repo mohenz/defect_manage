@@ -72,6 +72,57 @@ const StorageService = {
         }
     },
 
+    async saveCommonCode(payload, originalKey = null) {
+        console.log('[Storage] Saving common code...', payload, originalKey);
+
+        const normalized = {
+            group_code: payload.group_code,
+            code_value: payload.code_value,
+            code_name: payload.code_name,
+            color: payload.color || null,
+            sort_order: Number(payload.sort_order || 0)
+        };
+
+        try {
+            if (originalKey && (originalKey.group_code !== normalized.group_code || originalKey.code_value !== normalized.code_value)) {
+                const { error: deleteError } = await supabaseClient
+                    .from('common_codes')
+                    .delete()
+                    .eq('group_code', originalKey.group_code)
+                    .eq('code_value', originalKey.code_value);
+
+                if (deleteError) throw deleteError;
+            }
+
+            const { error } = await supabaseClient
+                .from('common_codes')
+                .upsert(normalized, { onConflict: 'group_code,code_value' });
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('[Storage] Error saving common code:', err.message);
+            return false;
+        }
+    },
+
+    async deleteCommonCode(groupCode, codeValue) {
+        console.log(`[Storage] Deleting common code ${groupCode}/${codeValue}...`);
+        try {
+            const { error } = await supabaseClient
+                .from('common_codes')
+                .delete()
+                .eq('group_code', groupCode)
+                .eq('code_value', codeValue);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('[Storage] Error deleting common code:', err.message);
+            return false;
+        }
+    },
+
     async getDefectsSummaryForStats() {
         console.log("[Storage] Fetching stats summary with timeout...");
         const timeoutPromise = new Promise((_, reject) => {

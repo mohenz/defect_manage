@@ -89,7 +89,8 @@ window.App = {
         },
         pendingDefectData: null, // Stores data received via postMessage for cross-domain support
         selectedDefect: null,
-        commonCodes: []
+        commonCodes: [],
+        settingsTab: 'test-types'
     },
     async init() {
         console.log("[App] 1. Initializing...");
@@ -706,8 +707,14 @@ window.App = {
     },
 
     renderSettings(container) {
-        const types = ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트'];
+        const types = this.getCodesByGroup('TEST_TYPE').map(c => c.code_value);
         const enabled = this.state.settings.enabledTestTypes;
+        const tabs = [
+            { id: 'test-types', label: '테스트 구분 설정', icon: 'fa-vial' },
+            { id: 'common-codes', label: '공통코드 관리', icon: 'fa-table-list' }
+        ];
+        const activeTab = this.state.settingsTab || 'test-types';
+        const groupedCodes = [...new Set((this.state.commonCodes || []).map(c => c.group_code))];
 
         container.innerHTML = `
             <header class="animate-in">
@@ -717,38 +724,209 @@ window.App = {
                 </div>
             </header>
 
-    <div class="form-container animate-in" style="max-width: 600px;">
-        <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">
-            대시보드, 목록, 등록 화면에서 노출하고 관리할 테스트 단계를 선택하세요.
-        </p>
+            <div class="form-container animate-in" style="max-width: 100%;">
+                <div style="display:flex; gap:0.75rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border); padding-bottom:1rem; flex-wrap:wrap;">
+                    ${tabs.map(tab => `
+                        <button
+                            type="button"
+                            class="btn"
+                            data-settings-tab="${tab.id}"
+                            style="background:${activeTab === tab.id ? 'var(--accent)' : 'var(--bg-secondary)'}; color:${activeTab === tab.id ? 'white' : 'var(--text-primary)'}; border:1px solid var(--border);">
+                            <i class="fas ${tab.icon}"></i> ${tab.label}
+                        </button>
+                    `).join('')}
+                </div>
 
-        <form id="settingsForm">
-            <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
-                ${types.map(t => `
-                            <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: 0.5rem; border-radius: 0.4rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" name="testTypes" value="${t}" ${enabled.includes(t) ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
-                                <span style="font-weight: 500;">${t}</span>
-                            </label>
-                        `).join('')}
-            </div>
+                <div id="settingsTabPanel">
+                    ${activeTab === 'test-types' ? `
+                        <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-vial"></i> 테스트 구분 설정</h2>
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">
+                            대시보드, 목록, 등록 화면에서 노출하고 관리할 테스트 단계를 선택하세요.
+                        </p>
 
-            <div style="margin-top: 2rem;">
-                <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
+                        <form id="settingsForm">
+                            <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                                ${types.map(t => `
+                                    <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: 0.5rem; border-radius: 0.4rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                                        <input type="checkbox" name="testTypes" value="${t}" ${enabled.includes(t) ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                                        <span style="font-weight: 500;">${t}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+
+                            <div style="margin-top: 2rem;">
+                                <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
+                            </div>
+                        </form>
+                    ` : `
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                            <div>
+                                <h2 style="margin-bottom: 0.5rem;"><i class="fas fa-table-list"></i> 공통코드 관리</h2>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                    테스트 구분, 상태, 심각도, 식별 등 공통 선택값을 전역으로 관리합니다.
+                                </p>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="App.renderCommonCodeForm()">
+                                <i class="fas fa-plus"></i> 코드 추가
+                            </button>
+                        </div>
+
+                        <div class="data-table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>그룹코드</th>
+                                        <th>코드값</th>
+                                        <th>코드명</th>
+                                        <th>색상</th>
+                                        <th>정렬순서</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${groupedCodes.map(group => `
+                                        <tr>
+                                            <td colspan="6" style="background: var(--bg-secondary); font-weight: 700;">${group}</td>
+                                        </tr>
+                                        ${this.getCodesByGroup(group).map(code => `
+                                            <tr>
+                                                <td>${code.group_code}</td>
+                                                <td><strong>${code.code_value}</strong></td>
+                                                <td>${this.sanitize(code.code_name)}</td>
+                                                <td>
+                                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                        <span style="display:inline-block; width:16px; height:16px; border-radius:50%; border:1px solid var(--border); background:${code.color || '#ffffff'};"></span>
+                                                        <span>${code.color || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td>${code.sort_order ?? 0}</td>
+                                                <td>
+                                                    <div style="display:flex; gap:0.5rem;">
+                                                        <button class="btn" style="padding:0.4rem; color: var(--accent)" onclick="App.renderCommonCodeForm('${code.group_code}', '${code.code_value}')"><i class="fas fa-edit"></i></button>
+                                                        <button class="btn" style="padding:0.4rem; color: var(--error)" onclick="App.deleteCommonCode('${code.group_code}', '${code.code_value}')"><i class="fas fa-trash"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    `).join('') || '<tr><td colspan="6" style="text-align:center; padding:2rem;">등록된 공통코드가 없습니다.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
             </div>
-        </form>
-    </div>
 `;
 
-        document.getElementById('settingsForm').onsubmit = (e) => {
+        document.querySelectorAll('[data-settings-tab]').forEach(button => {
+            button.onclick = () => {
+                this.state.settingsTab = button.dataset.settingsTab;
+                this.render();
+            };
+        });
+
+        const settingsForm = document.getElementById('settingsForm');
+        if (settingsForm) {
+            settingsForm.onsubmit = (e) => {
+                e.preventDefault();
+                const checked = Array.from(e.target.querySelectorAll('input[name="testTypes"]:checked')).map(i => i.value);
+                if (checked.length === 0) {
+                    alert('최소 하나 이상의 테스트 구분을 선택해야 합니다.');
+                    return;
+                }
+                this.updateSettings({ enabledTestTypes: checked });
+            };
+        }
+    },
+
+    renderCommonCodeForm(groupCode = '', codeValue = '') {
+        const code = groupCode && codeValue
+            ? (this.state.commonCodes || []).find(c => c.group_code === groupCode && c.code_value === codeValue)
+            : null;
+        const modalBody = document.getElementById('modalBody');
+
+        modalBody.innerHTML = `
+            <div style="margin-bottom: 2rem;">
+                <h1>${code ? '공통코드 수정' : '공통코드 추가'}</h1>
+                <p class="subtitle">공통 선택값과 표시 정보를 관리합니다.</p>
+            </div>
+            <form id="commonCodeForm">
+                <input type="hidden" name="original_group_code" value="${this.sanitize(code?.group_code || '')}">
+                <input type="hidden" name="original_code_value" value="${this.sanitize(code?.code_value || '')}">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+                    <div class="form-group">
+                        <label>그룹코드</label>
+                        <input type="text" name="group_code" value="${this.sanitize(code?.group_code || '')}" required placeholder="예: STATUS">
+                    </div>
+                    <div class="form-group">
+                        <label>코드값</label>
+                        <input type="text" name="code_value" value="${this.sanitize(code?.code_value || '')}" required placeholder="예: Open">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:1.5rem;">
+                    <div class="form-group">
+                        <label>코드명</label>
+                        <input type="text" name="code_name" value="${this.sanitize(code?.code_name || '')}" required placeholder="예: 진행중">
+                    </div>
+                    <div class="form-group">
+                        <label>색상</label>
+                        <input type="color" name="color" value="${code?.color || '#64748b'}">
+                    </div>
+                    <div class="form-group">
+                        <label>정렬순서</label>
+                        <input type="number" name="sort_order" value="${code?.sort_order ?? 0}" min="0" step="1">
+                    </div>
+                </div>
+                <div style="display:flex; gap:1rem; margin-top:2rem;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">${code ? '저장하기' : '등록하기'}</button>
+                    <button type="button" class="btn" style="flex:1; background: var(--bg-secondary);" onclick="App.closeModal()">취소</button>
+                </div>
+            </form>
+        `;
+
+        this.openModal();
+        document.getElementById('commonCodeForm').onsubmit = async (e) => {
             e.preventDefault();
-            const checked = Array.from(e.target.querySelectorAll('input[name="testTypes"]:checked')).map(i => i.value);
-            if (checked.length === 0) {
-                alert('최소 하나 이상의 테스트 구분을 선택해야 합니다.');
+            const formData = new FormData(e.target);
+            const payload = {
+                group_code: String(formData.get('group_code') || '').trim().toUpperCase(),
+                code_value: String(formData.get('code_value') || '').trim(),
+                code_name: String(formData.get('code_name') || '').trim(),
+                color: String(formData.get('color') || '').trim(),
+                sort_order: String(formData.get('sort_order') || '0').trim()
+            };
+            const originalKey = formData.get('original_group_code') && formData.get('original_code_value')
+                ? {
+                    group_code: String(formData.get('original_group_code')),
+                    code_value: String(formData.get('original_code_value'))
+                }
+                : null;
+
+            if (!payload.group_code || !payload.code_value || !payload.code_name) {
+                alert('그룹코드, 코드값, 코드명은 필수입니다.');
                 return;
             }
-            this.updateSettings({ enabledTestTypes: checked });
+
+            if (await StorageService.saveCommonCode(payload, originalKey)) {
+                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                this.closeModal();
+                this.render();
+                alert(code ? '공통코드가 수정되었습니다.' : '공통코드가 등록되었습니다.');
+            } else {
+                alert('공통코드 저장에 실패했습니다.');
+            }
         };
+    },
+
+    async deleteCommonCode(groupCode, codeValue) {
+        if (!confirm(`[${groupCode}] ${codeValue} 코드를 삭제하시겠습니까?`)) return;
+
+        if (await StorageService.deleteCommonCode(groupCode, codeValue)) {
+            this.state.commonCodes = await StorageService.fetchCommonCodes();
+            this.render();
+            alert('공통코드가 삭제되었습니다.');
+        } else {
+            alert('공통코드 삭제에 실패했습니다.');
+        }
     },
 
     async updateSettings(newSettings) {

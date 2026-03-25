@@ -508,8 +508,21 @@ body.standalone-mode.logged-in .modal-content {
     border-radius: 0 !important;
     box-shadow: none !important;
     transform: none !important;
-    padding: 3rem !important;
+    padding: 1.5rem !important;
     overflow-y: auto !important;
+}
+
+body.standalone-mode.logged-in #modalBody {
+    width: 100%;
+    min-height: calc(100vh - 3rem);
+}
+
+body.standalone-mode.logged-in #modalBody > .form-container,
+body.standalone-mode.logged-in #modalBody .form-container {
+    width: 100%;
+    max-width: none !important;
+    margin: 0;
+    border-radius: 0.75rem;
 }
 
 body.standalone-mode.logged-in .modal-controls #maximizeBtn {
@@ -541,4 +554,4 @@ body.standalone-mode.logged-in .modal-controls #maximizeBtn {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
-}
+}
