@@ -89,6 +89,76 @@ description: defect_manage 개발 작업 워크플로우 (기능 개선, 버그 
 
 ---
 
+## 클라우드 배포 (Vercel)
+
+> 로컬 테스트 완료 후 아래 순서로 진행
+
+// turbo
+6. 변경 파일 스테이징
+   ```powershell
+   cd d:\Workspace\defect_manage
+   git add js/app.js js/storage.js
+   # 신규 파일이 있을 경우 추가
+   # git add docs/CHANGELOG.md .agent/workflows/...
+   ```
+
+// turbo
+7. 커밋 메시지 작성 (영문, Conventional Commits 형식 권장)
+   ```powershell
+   git commit -m "feat: 기능 요약 한 줄
+
+   - 세부 변경 내역 1
+   - 세부 변경 내역 2
+   - 수정 파일: js/app.js, js/storage.js"
+   ```
+   - 접두어 규칙:
+     | 접두어 | 용도 |
+     |--------|------|
+     | `feat:` | 신규 기능 추가 |
+     | `fix:` | 버그 수정 |
+     | `ui:` | UI/스타일 변경 |
+     | `refactor:` | 코드 구조 개선 (기능 변화 없음) |
+     | `docs:` | 문서 추가/수정 |
+     | `chore:` | 설정, 워크플로우 등 기타 |
+
+// turbo
+8. GitHub 원격 저장소에 푸시
+   ```powershell
+   git push origin main
+   ```
+   - 푸시 완료 메시지 예시:
+     ```
+     To https://github.com/mohenz/defect_manage.git
+        b487936..aea4daf  main -> main
+     ```
+
+9. GitHub Pages 배포 확인
+   - GitHub `main` 브랜치 push 시 **GitHub Actions가 자동으로 배포 트리거**
+   - 배포 완료까지 약 **1~3분** 소요
+   - 🌐 **배포 URL**: https://mohenz.github.io/defect_manage
+   - 배포 상태 확인: https://github.com/mohenz/defect_manage/actions
+   - 배포 실패 시: Actions 탭 > 실패한 워크플로우 클릭 > 로그 확인
+
+### 배포 구성 정보
+
+| 항목 | 내용 |
+|------|------|
+| 플랫폼 | GitHub Pages (Static Hosting) |
+| 배포 URL | https://mohenz.github.io/defect_manage |
+| 연동 저장소 | https://github.com/mohenz/defect_manage |
+| 배포 브랜치 | `main` |
+| 배포 방식 | GitHub Actions 자동 배포 |
+| DB | Supabase (클라우드, 별도 서버 불필요) |
+
+### 주의사항
+- `data/*.json`, `images/`, `.env` 는 `.gitignore`에 포함되어 **푸시되지 않음**
+- GitHub Pages 환경에서 `server.js`는 사용되지 않음 (정적 파일 서빙만 해당)
+- Supabase 키(`js/config.js`)는 퍼블릭 키이므로 커밋해도 무방
+
+---
+
+
+
 ## 패치 스크립트 작성 가이드 (인코딩 우회)
 
 `app.js` 편집 도구가 실패할 때 사용하는 Python 방식:
