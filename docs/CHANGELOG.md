@@ -1,0 +1,74 @@
+# DefectFlow — 변경 이력 (CHANGELOG)
+
+> 이 파일은 DefectFlow 시스템의 기능 개선, 버그 수정, 구조 변경 이력을 날짜순으로 기록합니다.
+> 최신 내용이 상단에 위치합니다.
+
+---
+
+## [2026-03-25] 대시보드 UI 개선 및 엑셀 다운로드 전체화
+
+### ✨ 신규 기능
+
+#### 1. 결함 상태 현황 테이블 추가 (대시보드)
+- **위치**: 대시보드 > "테스트 구분별 결함 현황 (심각도별)" 표 **바로 위**
+- **내용**: 테스트 구분을 행(Row)으로, 결함 상태(Open / In Progress / Resolved / Closed / Reopened)를 열(Column)로 구성한 현황 표 추가
+- **UI**: 기존 "결함 현황 (심각도별)" 표와 동일한 스타일(data-table-container, tfoot 합계 행) 적용
+- **비중 표시**: 각 셀에 건수와 비중(%)을 함께 표시
+  - 예: `12 (34%)`
+- **수정 파일**: `js/app.js` — `renderDashboard()` 함수
+
+#### 2. 상단 통계 카드(stat-card) 비중(%) 표시
+- **대상**: 진행 중, 조치 완료, 크리티컬 카드
+- **형식**: 건수와 비중을 같은 라인에 표기
+  - 예: `155 (85%)`, `28 (15%)`, `4 (2%)`
+- **계산 기준**: 전체 결함 수 대비 비율 (Math.round 소수점 반올림)
+- **헬퍼 추가**: `const pct = (val, total) => total > 0 ? Math.round(val / total * 100) : 0`
+- **수정 파일**: `js/app.js` — `renderDashboard()` 함수
+
+---
+
+### 🔧 기능 개선
+
+#### 3. 엑셀 다운로드 — 전체 항목 다운로드
+- **변경 전**: 현재 화면에 표시 중인 페이지 데이터만 다운로드 (페이징 영향 받음)
+- **변경 후**: 현재 검색 필터 조건을 유지하면서 **전체 항목**을 다운로드
+- **신규 함수**: `StorageService.getAllDefectsForExport(filters)` 추가
+  - Supabase에서 페이징 없이 필터 적용 전체 조회
+  - `screenshot` 컬럼 SELECT에서 제외
+- `downloadExcel()` → `async downloadExcel()`으로 비동기 전환
+- 다운로드 중 버튼 비활성화 및 로딩 스피너 표시
+- 오류 발생 시 finally 블록에서 버튼 복원
+- **수정 파일**: `js/app.js`, `js/storage.js`
+
+#### 4. 엑셀 다운로드 — 이미지 컬럼 제외
+- **변경 전**: `screenshot` 필드(이미지 Base64 또는 URL)가 CSV에 포함되어 파일 크기 폭증 가능
+- **변경 후**: `screenshot`, 이미지 파일 관련 필드를 SELECT 및 출력 행에서 완전 제외
+- **다운로드 컬럼 목록** (18개):
+  `ID`, `구분`, `제목`, `결함식별`, `심각도`, `우선순위`, `상태`,
+  `메뉴명`, `화면명`, `재현단계`, `환경정보`, `등록자`, `담당자`,
+  `등록일`, `수정일`, `조치내용`, `조치시작일`, `조치종료일`
+- **수정 파일**: `js/storage.js` — `getAllDefectsForExport()` 신규 추가
+
+#### 5. 테스트 구분별 결함 현황 (심각도별) 테이블에 비중(%) 추가
+- **변경 전**: 각 심각도 컬럼에 건수만 표시 (예: `12`)
+- **변경 후**: 건수 + 해당 테스트 구분 전체 대비 비중(%) 함께 표시 (예: `12 (34%)`)
+- **적용 범위**: tbody 행 각 셀 + tfoot 합계 행
+- **수정 파일**: `js/app.js` — `renderDashboard()` 함수 내 `sortedTestTypes.map()` 및 tfoot
+
+---
+
+### 📁 수정 파일 목록
+
+| 파일 | 변경 유형 | 상세 |
+|------|-----------|------|
+| `js/app.js` | 수정 | `renderDashboard()` — 상태 현황표 추가, stat-card 비중(%) 표시, pct 헬퍼 추가 |
+| `js/app.js` | 수정 | `renderDashboard()` — 심각도 테이블 tbody/tfoot 비중(%) 표시 추가 |
+| `js/app.js` | 수정 | `downloadExcel()` — async 전환, 전체 항목 조회, 로딩 UI |
+| `js/storage.js` | 추가 | `getAllDefectsForExport(filters)` 신규 함수 |
+
+---
+
+## [이전 이력]
+
+> 이전 작업 이력은 `docs/history/` 디렉토리를 참조하세요.
+> 또는 `git log --oneline` 명령으로 커밋 이력을 확인할 수 있습니다.

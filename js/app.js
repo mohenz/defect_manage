@@ -930,6 +930,27 @@ window.App = {
         });
         const sortedTestTypes = Object.entries(testTypeStats).sort((a, b) => b[1].total - a[1].total);
 
+        // 3. 결함 상태 현황 계산 (테스트 구분별)
+        const statusStats = {};
+        const statusGrandTotal = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Closed: 0, Reopened: 0 };
+
+        defects.forEach(d => {
+            const type = d.test_type || '단위테스트';
+            if (!statusStats[type]) {
+                statusStats[type] = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Closed: 0, Reopened: 0 };
+            }
+            statusStats[type].total++;
+            statusGrandTotal.total++;
+            if (statusStats[type][d.status] !== undefined) {
+                statusStats[type][d.status]++;
+                statusGrandTotal[d.status]++;
+            }
+        });
+        const sortedStatusTypes = Object.entries(statusStats).sort((a, b) => b[1].total - a[1].total);
+
+        // 비중(%) 계산 헬퍼
+        const pct = (val, total) => total > 0 ? Math.round(val / total * 100) : 0;
+
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -945,15 +966,24 @@ window.App = {
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">진행 중</div>
-                    <div class="stat-value" style="color: var(--warning)">${stats.open}</div>
+                    <div class="stat-value" style="color: var(--warning); display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span>${stats.open}</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.open, stats.total)}%)</span>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">조치 완료</div>
-                    <div class="stat-value" style="color: var(--success)">${stats.resolved}</div>
+                    <div class="stat-value" style="color: var(--success); display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span>${stats.resolved}</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.resolved, stats.total)}%)</span>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">크리티컬</div>
-                    <div class="stat-value" style="color: var(--error)">${stats.critical}</div>
+                    <div class="stat-value" style="color: var(--error); display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span>${stats.critical}</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.critical, stats.total)}%)</span>
+                    </div>
                 </div>
             </div>
 
@@ -969,6 +999,51 @@ window.App = {
                     <div style="height: 100px;">
                         <canvas id="severityChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-chart-bar"></i> 결함 상태 현황 (테스트 구분별)</h2>
+                <div class="data-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>테스트 구분</th>
+                                <th style="text-align: center;">전체 건수</th>
+                                <th style="text-align: center; color: var(--warning);">접수 (Open)</th>
+                                <th style="text-align: center; color: #38bdf8;">조치 중 (In Progress)</th>
+                                <th style="text-align: center; color: var(--success);">조치 완료 (Resolved)</th>
+                                <th style="text-align: center; color: var(--text-secondary);">종료 (Closed)</th>
+                                <th style="text-align: center; color: var(--error);">재오픈 (Reopened)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedStatusTypes.map(([type, s]) => `
+                                <tr>
+                                    <td><strong>${this.sanitize(type)}</strong></td>
+                                    <td style="text-align: center;"><strong>${s.total}</strong></td>
+                                    <td style="text-align: center;">${s['Open']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Open'], s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s['In Progress']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['In Progress'], s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s['Resolved']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Resolved'], s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s['Closed']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Closed'], s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s['Reopened']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Reopened'], s.total) + '%)</span>' : ''}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="7" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                        </tbody>
+                        ${sortedStatusTypes.length > 0 ? `
+                        <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
+                            <tr>
+                                <td style="padding: 1rem;">합계 (Total)</td>
+                                <td style="text-align: center; padding: 1rem;">${statusGrandTotal.total}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${statusGrandTotal['Open']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Open'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: #38bdf8;">${statusGrandTotal['In Progress']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['In Progress'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--success);">${statusGrandTotal['Resolved']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Resolved'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">${statusGrandTotal['Closed']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Closed'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--error);">${statusGrandTotal['Reopened']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Reopened'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                            </tr>
+                        </tfoot>
+                        ` : ''}
+                    </table>
                 </div>
             </div>
 
@@ -991,10 +1066,10 @@ window.App = {
                                 <tr>
                                     <td><strong>${this.sanitize(type)}</strong></td>
                                     <td style="text-align: center;"><strong>${s.total}</strong></td>
-                                    <td style="text-align: center;">${s.Critical}</td>
-                                    <td style="text-align: center;">${s.Major}</td>
-                                    <td style="text-align: center;">${s.Minor}</td>
-                                    <td style="text-align: center;">${s.Simple}</td>
+                                    <td style="text-align: center;">${s.Critical}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Critical, s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s.Major}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Major, s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s.Minor}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Minor, s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s.Simple}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s.Simple, s.total) + '%)</span>' : ''}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
                         </tbody>
@@ -1003,10 +1078,10 @@ window.App = {
                             <tr>
                                 <td style="padding: 1rem;">합계 (Total)</td>
                                 <td style="text-align: center; padding: 1rem;">${testTypeGrandTotal.total}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Critical, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Major, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Minor, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Simple, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
                             </tr>
                         </tfoot>
                         ` : ''}
@@ -1417,55 +1492,69 @@ window.App = {
         this.fetchData(); // Trigger server-side fetch
     },
 
-    downloadExcel() {
-        const defects = this.state.defects;
-        if (defects.length === 0) {
-            alert('다운로드할 데이터가 없습니다.');
-            return;
-        }
+    async downloadExcel() {
+        // 로딩 표시
+        const btn = document.querySelector('button[onclick="App.downloadExcel()"]');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 다운로드 중...'; }
 
-        const headers = [
-            'ID', '구분', '제목', '결함식별', '심각도', '우선순위', '상태',
-            '메뉴명', '화면명', '재현단계', '환경정보', '등록자', '담당자',
-            '등록일', '수정일', '조치내용', '조치시작일', '조치종료일'
-        ];
-        const csvRows = [headers.join(',')];
+        try {
+            // 현재 검색 필터를 적용해 전체 항목 조회 (페이징 없음, 이미지 컬럼 제외)
+            const filters = this.state.listConfig.search || {};
+            const allDefects = await StorageService.getAllDefectsForExport(filters);
 
-        defects.forEach(d => {
-            const row = [
-                d.defect_id,
-                d.test_type || '단위테스트',
-                `"${(d.title || '').replace(/"/g, '""')}"`,
-                d.defect_identification || '-',
-                d.severity,
-                d.priority,
-                d.status,
-                `"${(d.menu_name || '').replace(/"/g, '""')}"`,
-                `"${(d.screen_name || '').replace(/"/g, '""')}"`,
-                `"${(d.steps_to_repro || '').replace(/"/g, '""')}"`,
-                `"${(d.env_info || '').replace(/"/g, '""')}"`,
-                d.creator,
-                d.assignee || '',
-                this.formatDateKST(d.created_at),
-                d.updated_at ? this.formatDateKST(d.updated_at) : '',
-                `"${(d.action_comment || '').replace(/"/g, '""')}"`,
-                d.action_start ? this.formatDateKST(d.action_start, false) : '',
-                d.action_end ? this.formatDateKST(d.action_end, false) : ''
+            if (allDefects.length === 0) {
+                alert('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            const headers = [
+                'ID', '구분', '제목', '결함식별', '심각도', '우선순위', '상태',
+                '메뉴명', '화면명', '재현단계', '환경정보', '등록자', '담당자',
+                '등록일', '수정일', '조치내용', '조치시작일', '조치종료일'
             ];
-            csvRows.push(row.join(','));
-        });
+            const csvRows = [headers.join(',')];
 
-        const csvContent = "\ufeff" + csvRows.join('\n'); // Add BOM for Excel UTF-8 support
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        const kstDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace(/\./, '');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `defects_export_${kstDate}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            allDefects.forEach(d => {
+                const row = [
+                    d.defect_id,
+                    d.test_type || '단위테스트',
+                    `"${(d.title || '').replace(/"/g, '""')}"`,
+                    d.defect_identification || '-',
+                    d.severity,
+                    d.priority,
+                    d.status,
+                    `"${(d.menu_name || '').replace(/"/g, '""')}"`,
+                    `"${(d.screen_name || '').replace(/"/g, '""')}"`,
+                    `"${(d.steps_to_repro || '').replace(/"/g, '""')}"`,
+                    `"${(d.env_info || '').replace(/"/g, '""')}"`,
+                    d.creator,
+                    d.assignee || '',
+                    this.formatDateKST(d.created_at),
+                    d.updated_at ? this.formatDateKST(d.updated_at) : '',
+                    `"${(d.action_comment || '').replace(/"/g, '""')}"`,
+                    d.action_start ? this.formatDateKST(d.action_start, false) : '',
+                    d.action_end ? this.formatDateKST(d.action_end, false) : ''
+                ];
+                csvRows.push(row.join(','));
+            });
+
+            const csvContent = "\ufeff" + csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const kstDate = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace(/\./, '');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `defects_export_${kstDate}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error('[App] Excel export failed:', err);
+            alert('엑셀 다운로드 중 오류가 발생했습니다.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-excel"></i> 엑셀 다운로드'; }
+        }
     },
 
     truncate(str, len) {

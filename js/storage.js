@@ -52,6 +52,37 @@ const StorageService = {
         return { data, totalCount: count };
     },
 
+    /**
+     * Get ALL defects for Excel export (no pagination, filters applied, no image columns)
+     */
+    async getAllDefectsForExport(filters = {}) {
+        console.log("[Storage] Fetching all defects for export (no pagination)...", filters);
+
+        let query = supabaseClient
+            .from('defects')
+            .select('defect_id, test_type, title, defect_identification, severity, priority, status, menu_name, screen_name, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end')
+            .eq('is_deleted', 'N');
+
+        // Apply same filters as list view
+        if (filters.severity) query = query.eq('severity', filters.severity);
+        if (filters.status) query = query.eq('status', filters.status);
+        if (filters.testType) query = query.eq('test_type', filters.testType);
+        if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
+        if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
+        if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
+        if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("[Storage] Error fetching all defects for export:", error.message);
+            throw error;
+        }
+        console.log(`[Storage] Export data fetched: ${data.length} items.`);
+        return data;
+    },
+
     async getDefectById(id) {
         console.log(`[Storage] Requesting defect detail #${id}...`);
         const { data, error } = await supabaseClient
