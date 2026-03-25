@@ -281,7 +281,7 @@ window.App = {
         this.state.stats = {
             total: d.length,
             open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
-            resolved: d.filter(x => x.status === 'Resolved' || x.status === 'Closed').length,
+            resolved: d.filter(x => x.status === 'Resolved' || x.status === 'Staging' || x.status === 'Closed').length,
             critical: d.filter(x => x.severity === 'Critical').length
         };
     },
@@ -932,12 +932,12 @@ window.App = {
 
         // 3. 결함 조치 현황 계산 (테스트 구분별)
         const statusStats = {};
-        const statusGrandTotal = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Closed: 0, Reopened: 0 };
+        const statusGrandTotal = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Staging: 0, Closed: 0, Reopened: 0 };
 
         defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (!statusStats[type]) {
-                statusStats[type] = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Closed: 0, Reopened: 0 };
+                statusStats[type] = { total: 0, Open: 0, 'In Progress': 0, Resolved: 0, Staging: 0, Closed: 0, Reopened: 0 };
             }
             statusStats[type].total++;
             statusGrandTotal.total++;
@@ -1013,6 +1013,7 @@ window.App = {
                                 <th style="text-align: center; color: var(--warning);">접수 (Open)</th>
                                 <th style="text-align: center; color: #38bdf8;">조치 중 (In Progress)</th>
                                 <th style="text-align: center; color: var(--success);">조치 완료 (Resolved)</th>
+                                <th style="text-align: center; color: #a78bfa;">스테이징 (Staging)</th>
                                 <th style="text-align: center; color: var(--text-secondary);">종료 (Closed)</th>
                                 <th style="text-align: center; color: var(--error);">재오픈 (Reopened)</th>
                             </tr>
@@ -1025,6 +1026,7 @@ window.App = {
                                     <td style="text-align: center;">${s['Open']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Open'], s.total) + '%)</span>' : ''}</td>
                                     <td style="text-align: center;">${s['In Progress']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['In Progress'], s.total) + '%)</span>' : ''}</td>
                                     <td style="text-align: center;">${s['Resolved']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Resolved'], s.total) + '%)</span>' : ''}</td>
+                                    <td style="text-align: center;">${s['Staging']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Staging'], s.total) + '%)</span>' : ''}</td>
                                     <td style="text-align: center;">${s['Closed']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Closed'], s.total) + '%)</span>' : ''}</td>
                                     <td style="text-align: center;">${s['Reopened']}${s.total > 0 ? ' <span style="color:var(--text-secondary);font-size:0.8rem;">(' + pct(s['Reopened'], s.total) + '%)</span>' : ''}</td>
                                 </tr>
@@ -1038,6 +1040,7 @@ window.App = {
                                 <td style="text-align: center; padding: 1rem; color: var(--warning);">${statusGrandTotal['Open']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Open'], statusGrandTotal.total) + '%)</span>' : ''}</td>
                                 <td style="text-align: center; padding: 1rem; color: #38bdf8;">${statusGrandTotal['In Progress']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['In Progress'], statusGrandTotal.total) + '%)</span>' : ''}</td>
                                 <td style="text-align: center; padding: 1rem; color: var(--success);">${statusGrandTotal['Resolved']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Resolved'], statusGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: #a78bfa;">${statusGrandTotal['Staging']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Staging'], statusGrandTotal.total) + '%)</span>' : ''}</td>
                                 <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">${statusGrandTotal['Closed']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Closed'], statusGrandTotal.total) + '%)</span>' : ''}</td>
                                 <td style="text-align: center; padding: 1rem; color: var(--error);">${statusGrandTotal['Reopened']}${statusGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(statusGrandTotal['Reopened'], statusGrandTotal.total) + '%)</span>' : ''}</td>
                             </tr>
@@ -1165,10 +1168,10 @@ window.App = {
 
         // Chart.js Initialization (Weighted Stacked Bar)
         const statusCounts = {
-            'Open': 0, 'In Progress': 0, 'Resolved': 0, 'Closed': 0, 'Reopened': 0
+            'Open': 0, 'In Progress': 0, 'Resolved': 0, 'Staging': 0, 'Closed': 0, 'Reopened': 0
         };
         const statusMap = {
-            'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Closed': '종료', 'Reopened': '재오픈'
+            'Open': '접수', 'In Progress': '조치 중', 'Resolved': '조치 완료', 'Staging': '스테이징 배포', 'Closed': '종료', 'Reopened': '재오픈'
         };
         let totalDefectsCount = 0;
         defects.forEach(d => {
@@ -1337,6 +1340,7 @@ window.App = {
                             <option value="Open" ${search.status === 'Open' ? 'selected' : ''}>Open</option>
                             <option value="In Progress" ${search.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                             <option value="Resolved" ${search.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                            <option value="Staging" ${search.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
                             <option value="Closed" ${search.status === 'Closed' ? 'selected' : ''}>Closed</option>
                             <option value="Reopened" ${search.status === 'Reopened' ? 'selected' : ''}>Reopened</option>
                         </select>
@@ -1744,6 +1748,7 @@ window.App = {
                                 <option value="Open" ${item.status === 'Open' ? 'selected' : ''}>Open (접수)</option>
                                 <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
                                 <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
+                                <option value="Staging" ${item.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
                                 <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
                                 <option value="Reopened" ${item.status === 'Reopened' ? 'selected' : ''}>Reopened (재오픈)</option>
                             </select>
@@ -1840,6 +1845,7 @@ window.App = {
                         <select name="status">
                             <option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress (조치 중)</option>
                             <option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved (조치 완료)</option>
+                            <option value="Staging" ${item.status === 'Staging' ? 'selected' : ''}>Staging (스테이징 배포)</option>
                             <option value="Closed" ${item.status === 'Closed' ? 'selected' : ''}>Closed (종료)</option>
                         </select>
                     </div>
