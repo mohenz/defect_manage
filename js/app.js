@@ -28,6 +28,36 @@ window.App = {
         return code ? code.color : null;
     },
 
+    getEnabledTestTypes() {
+        return this.state.settings?.enabledTestTypes || [];
+    },
+
+    isTestTypeEnabled(testType) {
+        const normalizedType = testType || '단위테스트';
+        const enabledTypes = this.getEnabledTestTypes();
+        return enabledTypes.length === 0 || enabledTypes.includes(normalizedType);
+    },
+
+    getVisibleTestTypeCodes(selectedValue = '') {
+        const enabledTypes = this.getEnabledTestTypes();
+        const codes = this.getCodesByGroup('TEST_TYPE');
+
+        if (enabledTypes.length === 0) {
+            return codes;
+        }
+
+        const filteredCodes = codes.filter(c => enabledTypes.includes(c.code_value));
+
+        if (selectedValue && !filteredCodes.some(c => c.code_value === selectedValue)) {
+            const selectedCode = codes.find(c => c.code_value === selectedValue);
+            if (selectedCode) {
+                return [...filteredCodes, selectedCode];
+            }
+        }
+
+        return filteredCodes;
+    },
+
     state: {
         currentView: 'dashboard',
         defects: [],
@@ -66,6 +96,7 @@ window.App = {
         try {
             console.log("[App] 2. StorageService Init..."); StorageService.init();
             this.initializeRuntimeContext();
+            this.bindEvents();
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 this.state.currentUser = JSON.parse(savedUser);
@@ -81,8 +112,9 @@ window.App = {
                 console.error("[App] Common codes load failed:", err);
             }
 
+            await this.loadSettings();
+
             console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
-            this.bindEvents();
         } catch (err) {
             console.error("[App] Init failed:", err);
         }
@@ -103,11 +135,39 @@ window.App = {
         }
     },
 
+    async loadSettings() {
+        const localSettings = localStorage.getItem('app_settings');
+        if (localSettings) {
+            try {
+                this.state.settings = { ...this.state.settings, ...JSON.parse(localSettings) };
+            } catch (err) {
+                console.error('[App] Failed to parse local app settings:', err);
+            }
+        }
+
+        try {
+            const globalSettings = await StorageService.getAppSettings();
+            if (globalSettings) {
+                this.state.settings = { ...this.state.settings, ...globalSettings };
+                localStorage.setItem('app_settings', JSON.stringify(this.state.settings));
+            }
+        } catch (err) {
+            console.error('[App] Failed to load global app settings:', err);
+        }
+
+        if (this.state.listConfig.search.testType && !this.isTestTypeEnabled(this.state.listConfig.search.testType)) {
+            this.state.listConfig.search.testType = '';
+        }
+    },
+
     async fetchData() { console.log("[App] [fetchData] Starting...");
         console.log("[App] Fetching data...");
         try {
             console.log("[App] [fetchData] 1. Fetching Stats Summary..."); this.state.allDefectsSummary = await StorageService.getDefectsSummaryForStats() || []; console.log("[App] [fetchData] 2. Stats Summary Loaded.");
-            const result = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, this.state.listConfig.search);
+            const result = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, {
+                ...this.state.listConfig.search,
+                enabledTestTypes: this.getEnabledTestTypes()
+            });
             this.state.defects = result.data;
             this.state.totalDefectCount = result.totalCount;
             this.state.users = await StorageService.getUsers() || [];
@@ -158,9 +218,7 @@ window.App = {
 
 
     getFilteredDefects() {
-        const d = (this.state.allDefectsSummary || []).filter(d => 
-            (this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트')) || this.getCodesByGroup('TEST_TYPE').length === 0)
-        );
+        const d = (this.state.allDefectsSummary || []).filter(d => this.isTestTypeEnabled(d.test_type));
 
         this.state.stats = {
             total: d.length,
@@ -710,9 +768,8 @@ window.App = {
         }
 
         // Refresh calculations and UI
-        this.calculateStats();
+        await this.fetchData();
         alert('설정이 전역적으로 저장되었습니다.');
-        console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
     },
 
     async deleteUser(id) {
@@ -773,9 +830,7 @@ window.App = {
     renderDashboard(container) {
         const stats = this.state.stats;
         // All necessary summary data is now in state.allDefectsSummary
-        const defects = this.state.allDefectsSummary.filter(d =>
-            (this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트')) || this.getCodesByGroup('TEST_TYPE').length === 0)
-        );
+        const defects = this.state.allDefectsSummary.filter(d => this.isTestTypeEnabled(d.test_type));
 
         // 1. 등록자별/심각도별 통계 계산
         const creatorStats = {};
@@ -1198,7 +1253,7 @@ window.App = {
                         <label style="font-size: 0.75rem;">테스트 구분</label>
                         <select id="searchTestType">
                             <option value="">전체</option>
-                            ${this.getCodesByGroup('TEST_TYPE').map(c => `
+                            ${this.getVisibleTestTypeCodes(search.testType).map(c => `
                                 <option value="${c.code_value}" ${search.testType === c.code_value ? 'selected' : ''}>${c.code_name}</option>
                             `).join('')}
                         </select>
@@ -1381,7 +1436,10 @@ window.App = {
 
         try {
             // 현재 검색 필터를 적용해 전체 항목 조회 (페이징 없음, 이미지 컬럼 제외)
-            const filters = this.state.listConfig.search || {};
+            const filters = {
+                ...(this.state.listConfig.search || {}),
+                enabledTestTypes: this.getEnabledTestTypes()
+            };
             const allDefects = await StorageService.getAllDefectsForExport(filters);
 
             if (allDefects.length === 0) {
@@ -1498,7 +1556,7 @@ window.App = {
                     <div class="form-group">
                         <label>테스트 구분</label>
                         <select name="test_type" required>
-                                ${this.getCodesByGroup('TEST_TYPE').map(c => `<option value="${c.code_value}" \${item.test_type === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" \${item.test_type === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                     </div>
 
