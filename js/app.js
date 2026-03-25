@@ -1475,7 +1475,9 @@ window.App = {
 
     renderForm(container, id = null, itemOverride = null) {
         const isAdmin = this.getEffectiveRole() === '관리자';
-        const canAssign = this.canEditAssignee();
+        const isNewDefect = !id;
+        const canEditCreator = isNewDefect || isAdmin;
+        const canAssign = isNewDefect || this.canEditAssignee();
         let item = itemOverride || (id ? this.getSelectedDefect(id) : {}) || {};
 
         // Handle pending data (Priority: postMessage > localStorage)
@@ -1566,24 +1568,29 @@ window.App = {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
-                            <label>등록자 (테스터) (필수) ${this.state.currentRole === '관리자' ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
-                            <select name="creator" required ${this.state.currentRole === '관리자' ? '' : 'disabled'}>
+                            <label>등록자 (테스터) (필수) ${canEditCreator ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
+                            <select name="creator" required ${canEditCreator ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
                                 ${this.state.users.filter(u => u.status === '사용').map(u => `
                                     <option value="${this.sanitize(u.name)}" ${(item.creator || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
-                            ${this.state.currentRole !== '관리자' ? `<input type="hidden" name="creator" value="${this.sanitize(item.creator || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
+                            ${!canEditCreator ? `<input type="hidden" name="creator" value="${this.sanitize(item.creator || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
                         </div>
                         <div class="form-group">
                             <label>담당자 (조치자) ${canAssign ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
                             <select name="assignee" ${canAssign ? '' : 'disabled'}>
                                 <option value="">선택 안함</option>
-                                ${this.state.users.filter(u => u.status === '사용' && (isAdmin || u.role === '조치자')).map(u => `
+                                ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
                                     <option value="${this.sanitize(u.name)}" ${item.assignee === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
-                            ${canAssign ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 관리자와 조치자는 결함정보관리 화면에서 담당자 정보를 수정할 수 있습니다.</p>' : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>'}
+                            ${isNewDefect
+                                ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 신규 등록 시 담당자(조치자)를 선택할 수 있습니다.</p>'
+                                : (canAssign
+                                    ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 관리자와 조치자는 결함정보관리 화면에서 담당자 정보를 수정할 수 있습니다.</p>'
+                                    : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>')
+                            }
                             ${!canAssign ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
                         </div>
                     </div>
