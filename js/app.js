@@ -65,6 +65,7 @@ window.App = {
         console.log("[App] 1. Initializing...");
         try {
             console.log("[App] 2. StorageService Init..."); StorageService.init();
+            this.initializeRuntimeContext();
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 this.state.currentUser = JSON.parse(savedUser);
@@ -84,6 +85,21 @@ window.App = {
             this.bindEvents();
         } catch (err) {
             console.error("[App] Init failed:", err);
+        }
+    },
+
+    initializeRuntimeContext() {
+        const params = new URLSearchParams(window.location.search);
+        this.state.isStandalone = params.get('mode') === 'standalone';
+
+        if (this.state.isStandalone) {
+            document.body.classList.add('standalone-mode');
+            const requestedView = window.location.hash.substring(1) || 'register';
+            this.state.returnTo = requestedView;
+
+            if (window.opener) {
+                window.opener.postMessage({ type: 'DEFECTFLOW_READY' }, '*');
+            }
         }
     },
 
@@ -114,6 +130,17 @@ window.App = {
             const hash = window.location.hash.substring(1) || 'dashboard';
             if (this.state.currentView !== hash) {
                 this.navigate(hash);
+            }
+        });
+
+        window.addEventListener('message', (event) => {
+            if (!event.data || event.data.type !== 'DEFECTFLOW_DATA') return;
+
+            this.state.pendingDefectData = event.data.data || null;
+            console.log("[App] Received defect data via postMessage. Screenshot status:", !!this.state.pendingDefectData?.screenshot);
+
+            if (this.state.isLoggedIn) {
+                this.showRegisterModal();
             }
         });
 
@@ -148,10 +175,10 @@ window.App = {
 
         // Authentication Guard
         // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
-        const isStandaloneRegister = this.state.isStandalone && view === 'register';
         const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
 
-        if (!this.state.isLoggedIn && !isStandaloneRegister && !isAuthView) {
+        if (!this.state.isLoggedIn && !isAuthView) {
+            this.state.returnTo = view;
             this.state.currentView = 'login';
             console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
             return;
@@ -1898,6 +1925,39 @@ window.App = {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    },
+
+    buildDefectPayload(form, id = null) {
+        const formData = new FormData(form);
+        const currentUserName = this.state.currentUser?.name || null;
+        const existing = id ? this.getSelectedDefect(id) || {} : {};
+
+        const value = (key, fallback = '') => {
+            const raw = formData.get(key);
+            if (raw === null || raw === undefined) return fallback;
+            return typeof raw === 'string' ? raw.trim() : raw;
+        };
+
+        return {
+            test_type: value('test_type', existing.test_type || '단위테스트'),
+            title: value('title', existing.title || ''),
+            severity: value('severity', existing.severity || 'Minor'),
+            priority: value('priority', existing.priority || 'P3'),
+            steps_to_repro: value('steps_to_repro', existing.steps_to_repro || ''),
+            creator: value('creator', existing.creator || currentUserName || ''),
+            assignee: value('assignee', existing.assignee || ''),
+            menu_name: value('menu_name', existing.menu_name || ''),
+            screen_name: value('screen_name', existing.screen_name || ''),
+            screen_url: value('screen_url', existing.screen_url || ''),
+            screenshot: value('screenshot', existing.screenshot || ''),
+            status: value('status', existing.status || 'Open'),
+            defect_identification: value('defect_identification', existing.defect_identification || ''),
+            action_comment: value('action_comment', existing.action_comment || ''),
+            action_start: value('action_start', existing.action_start || '') || null,
+            action_end: value('action_end', existing.action_end || '') || null,
+            env_info: value('env_info', existing.env_info || ''),
+            updated_by: currentUserName
+        };
     },
 
     calculateStats() {
