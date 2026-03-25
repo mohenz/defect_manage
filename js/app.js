@@ -6,7 +6,7 @@ const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 
 window.App = {
     // --- Utils ---
-    pct(val, total) {
+    this.pct(val, total) {
         return total > 0 ? Math.round(val / total * 100) : 0;
     },
 
@@ -31,6 +31,7 @@ window.App = {
     state: {
         currentView: 'dashboard',
         defects: [],
+        allDefectsSummary: [],
         users: [],
         stats: { total: 0, open: 0, resolved: 0, critical: 0 },
         initialRouteHandled: false,
@@ -62,254 +63,9 @@ window.App = {
     },
 
     getFilteredDefects() {
-        const types = this.state.settings.enabledTestTypes;
-        return this.state.defects.filter(d => types.includes(d.test_type || '단위테스트'));
-    },
-
-    getEffectiveRole() {
-        return this.state.currentRole || (this.state.currentUser ? this.state.currentUser.role : '테스터');
-    },
-
-    canEditAssignee() {
-        return ['조치자', '관리자'].includes(this.getEffectiveRole());
-    },
-
-    getSelectedDefect(id = null) {
-        if (id && this.state.selectedDefect && this.state.selectedDefect.defect_id === id) {
-            return this.state.selectedDefect;
-        }
-
-        return id ? (this.state.defects.find(x => x.defect_id === id) || null) : null;
-    },
-
-    buildDefectPayload(formElement, id = null) {
-        const formData = new FormData(formElement);
-        const payload = Object.fromEntries(formData.entries());
-        const originalItem = id ? (this.getSelectedDefect(id) || {}) : {};
-        const nullableDateFields = ['action_start', 'action_end'];
-
-        nullableDateFields.forEach((field) => {
-            if (payload[field] === '') {
-                payload[field] = null;
-            }
-        });
-
-        // Avoid resending an unchanged screenshot on edit, especially for legacy Base64 rows.
-        if (id && payload.screenshot === (originalItem.screenshot || '')) {
-            delete payload.screenshot;
-        }
-
-        // Preserve assignee unless the current user is an action owner or admin.
-        if (!this.canEditAssignee()) {
-            payload.assignee = originalItem.assignee || '';
-        }
-
-        return payload;
-    },
-
-    handleImageUpload(input) {
-        const file = input.files[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            alert('이미지 파일만 업로드 가능합니다.');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const base64Data = e.target.result;
-
-            // Hidden input 업데이트
-            const screenshotInput = document.getElementsByName('screenshot')[0];
-            if (screenshotInput) {
-                screenshotInput.value = base64Data;
-            }
-
-            // 미리보기 영역 업데이트 또는 생성
-            const previewContainer = document.getElementById('imagePreviewArea');
-            if (previewContainer) {
-                previewContainer.innerHTML = `<img src="${base64Data}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
-                document.getElementById('imagePreviewWrapper').style.display = 'block';
-            } else {
-                alert('이미지가 선택되었습니다. 등록 시 함께 저장됩니다.');
-            }
-        };
-        reader.readAsDataURL(file);
-    },
-
-    async init() {
-        console.log("[App] Initializing...");
-
-        // Global Error Logging
-        window.onerror = function (message, source, lineno, colno, error) {
-            console.error("[Global Error]", { message, source, lineno, colno, error });
-        };
-        window.onunhandledrejection = function (event) {
-            console.error("[Unhandled Rejection]", event.reason);
-        };
-
-        try {
-            StorageService.init();
-
-            // 1. Session Check
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                this.state.currentUser = JSON.parse(savedUser);
-                this.state.isLoggedIn = true;
-                this.state.currentRole = this.state.currentUser.role;
-                document.body.classList.add('logged-in');
-            }
-
-            // Load Settings (Global via DB or LocalStorage as fallback)
-            try {
-                const dbSettings = await StorageService.getAppSettings();
-                if (dbSettings) {
-                    this.state.settings = { ...this.state.settings, ...dbSettings };
-                    console.log("[App] Settings loaded from Supabase.");
-                } else {
-                    const savedSettings = localStorage.getItem('app_settings');
-                    if (savedSettings) {
-                        const parsed = JSON.parse(savedSettings);
-                        this.state.settings = { ...this.state.settings, ...parsed };
-                        console.log("[App] Settings loaded from LocalStorage (fallback).");
-                    }
-                }
-            } catch (err) {
-                console.error("[App] Failed to load settings from DB:", err);
-            }
-
-            this.bindEvents();
-
-            // Check for Standalone Mode (Popup)
-            const params = new URLSearchParams(window.location.search);
-            this.state.isStandalone = params.get('mode') === 'standalone';
-
-            if (this.state.isStandalone) {
-                document.body.classList.add('standalone-mode');
-                // Cross-Domain 통신: 부모 창이 있다면 준비 완료 신호를 보냄
-                if (window.opener) {
-                    window.opener.postMessage({ type: 'DEFECTFLOW_READY' }, '*');
-                    console.log("[App] Standalone mode ready signal sent to opener.");
-                }
-            }
-
-            // Message listener for cross-domain data (postMessage)
-            window.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'DEFECTFLOW_DATA') {
-                    console.log("[App] Defect data received via postMessage.");
-                    this.state.pendingDefectData = event.data.data;
-
-                    // 만약 현재 등록 모달이 열려있다면 즉시 재렌더링하여 데이터 반영
-                    if (this.state.currentModal === 'register') {
-                        this.showRegisterModal();
-                    }
-                }
-            });
-
-            // 2. Load Common Codes (Added for Phase 3-1)
-            try {
-                this.state.commonCodes = await StorageService.fetchCommonCodes();
-                console.log("[App] Common codes loaded:", this.state.commonCodes.length);
-            } catch (err) {
-                console.error("[App] Failed to load common codes:", err);
-                this.state.commonCodes = [];
-            }
-
-            await this.fetchData();
-
-            // Handle Initial Routing
-            const hash = window.location.hash.substring(1);
-            if (this.state.isLoggedIn) {
-                this.navigate(hash || 'dashboard');
-            } else {
-                // Standalone 모드에서 register 요청인 경우 로그인 없이 진행 허용
-                if (this.state.isStandalone && hash === 'register') {
-                    this.navigate('register');
-                } else {
-                    // Save intended hash for post-login redirect
-                    if (hash && hash !== 'login' && hash !== 'signup') {
-                        this.state.returnTo = hash;
-                    }
-                    this.navigate('login');
-                }
-            }
-
-            console.log("[App] Initialization complete");
-        } catch (err) {
-            console.error("[App] Init failed:", err);
-        }
-    },
-
-    bindEvents() {
-        document.querySelectorAll('.nav-item').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const view = link.getAttribute('data-view');
-                this.navigate(view);
-            });
-        });
-    },
-
-    async fetchData() {
-        console.log("[App] Fetching data from Supabase...");
-
-        // Show loader if possible
-        const root = document.getElementById('app');
-        if (root && root.innerHTML === '') {
-            root.innerHTML = '<div class="loader">Loading...</div>';
-        }
-
-        try {
-            // 1. Fetch Summary for Dashboard Stats (Lightweight)
-            try {
-                this.state.allDefectsSummary = await StorageService.getDefectsSummaryForStats();
-                console.log(`[App] Stats summary loaded: ${this.state.allDefectsSummary.length} items.`);
-            } catch (e) {
-                console.warn("[App] Stats summary fetch failed:", e.message);
-                this.state.allDefectsSummary = [];
-            }
-
-            // 2. Fetch Paged Data for List View (Current Page)
-            try {
-                const filters = this.state.listConfig.search || {};
-                const pageResult = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, filters);
-                this.state.defects = pageResult.data;
-                this.state.totalDefectCount = pageResult.totalCount;
-                console.log(`[App] Paged defects loaded. Page ${this.state.listConfig.page}, Items: ${this.state.defects.length}/${this.state.totalDefectCount}`);
-            } catch (e) {
-                console.warn("[App] Paged defects fetch failed:", e.message);
-                this.state.defects = [];
-                this.state.totalDefectCount = 0;
-            }
-
-            try {
-                this.state.users = await StorageService.getUsers();
-            } catch (e) {
-                console.warn("[App] Users fetch failed:", e.message);
-                this.state.users = [];
-            }
-
-            this.calculateStats();
-            this.render();
-
-            // Handle initial routing after data is ready
-            if (!this.state.initialRouteHandled) {
-                const hash = window.location.hash.substring(1);
-                if (this.state.isLoggedIn || (this.state.isStandalone && hash === 'register')) {
-                    this.navigate(hash || 'dashboard');
-                    this.state.initialRouteHandled = true;
-                }
-            }
-        } catch (err) {
-            console.error("[App] FetchData failed:", err);
-        }
-    },
-
-    calculateStats() {
-        // Use allDefectsSummary (minimal data) instead of current page
-        const types = this.state.settings.enabledTestTypes;
-        const d = this.state.allDefectsSummary.filter(d => types.includes(d.test_type || '단위테스트'));
+        const d = (this.state.allDefectsSummary || []).filter(d => 
+            this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트'))
+        );
 
         this.state.stats = {
             total: d.length,
@@ -1006,21 +762,21 @@ window.App = {
                     <div class="stat-label">진행 중</div>
                     <div class="stat-value" style="color: var(--warning); display: flex; align-items: baseline; gap: 0.5rem;">
                         <span>${stats.open}</span>
-                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.open, stats.total)}%)</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.open, stats.total)}%)</span>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">조치 완료</div>
                     <div class="stat-value" style="color: var(--success); display: flex; align-items: baseline; gap: 0.5rem;">
                         <span>${stats.resolved}</span>
-                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.resolved, stats.total)}%)</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.resolved, stats.total)}%)</span>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">크리티컬</div>
                     <div class="stat-value" style="color: var(--error); display: flex; align-items: baseline; gap: 0.5rem;">
                         <span>${stats.critical}</span>
-                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${pct(stats.critical, stats.total)}%)</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.critical, stats.total)}%)</span>
                     </div>
                 </div>
             </div>
@@ -1111,10 +867,10 @@ window.App = {
                             <tr>
                                 <td style="padding: 1rem;">합계 (Total)</td>
                                 <td style="text-align: center; padding: 1rem;">${testTypeGrandTotal.total}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Critical, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Major, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Minor, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + pct(testTypeGrandTotal.Simple, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Critical, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Major, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Minor, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Simple, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
                             </tr>
                         </tfoot>
                         ` : ''}
