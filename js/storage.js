@@ -41,26 +41,67 @@ const StorageService = {
     /**
      * Fetch all active common codes from the database
      */
+    
     async fetchCommonCodes() {
-        try {
-            const { data, error } = await supabaseClient
-                .from('common_codes')
-                .select('*')
-                .eq('is_active', true)
-                .order('group_code', { ascending: true })
-                .order('sort_order', { ascending: true });
+        console.log("[Storage] Fetching common codes with timeout...");
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Supabase Query Timeout")), 3000);
+        });
 
-            if (error) throw error;
-            return data;
+        const queryPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('common_codes')
+                    .select('group_code, code_value, code_name, color, sort_order')
+                    .order('group_code', { ascending: true })
+                    .order('sort_order', { ascending: true });
+
+                if (error) throw error;
+                return data;
+            } catch (err) {
+                console.error('[Storage] Supabase error in fetchCommonCodes:', err.message);
+                throw err;
+            }
+        })();
+
+        try {
+            return await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
-            console.error('[StorageService] Failed to fetch common codes:', err);
+            console.warn('[Storage] fetchCommonCodes failed or timed out. Falling back to empty array.');
             return [];
         }
     },
+\n
+    async getDefectsSummaryForStats() {
+        console.log("[Storage] Fetching stats summary with timeout...");
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Supabase Stats Timeout")), 4000); // 좀 더 넉넉하게 4초
+        });
 
+        const queryPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('defects')
+                    .select('defect_id, title, status, severity, test_type, creator, created_at')
+                    .eq('is_deleted', 'N');
 
+                if (error) throw error;
+                return data;
+            } catch (err) {
+                console.error('[Storage] Supabase stats error:', err.message);
+                throw err;
+            }
+        })();
+
+        try {
+            return await Promise.race([queryPromise, timeoutPromise]);
+        } catch (err) {
+            console.warn('[Storage] getDefectsSummaryForStats failed or timed out. Falling back to empty array.');
+            return [];
+        }
+    },
     async getDefects(page = 1, pageSize = 20, filters = {}) {
-        console.log(`[Storage] Requesting defects (Page: ${page}, Size: ${pageSize}, Filters:`, filters, ")");
+        console.log(`[Storage] Fetching defects (Page ${page})...`, filters);
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
 
@@ -69,14 +110,12 @@ const StorageService = {
             .select('*', { count: 'exact' })
             .eq('is_deleted', 'N');
 
-        // Apply filters
         if (filters.severity) query = query.eq('severity', filters.severity);
         if (filters.status) query = query.eq('status', filters.status);
         if (filters.testType) query = query.eq('test_type', filters.testType);
         if (filters.identification) query = query.eq('defect_identification', filters.identification);
         if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
         if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
-        
         if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
         if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
 
@@ -85,42 +124,11 @@ const StorageService = {
             .range(from, to);
 
         if (error) {
-            console.error("[Storage] Error fetching defects:", error.message, error.details);
+            console.error("[Storage] Error fetching defects:", error.message);
             throw error;
         }
-        console.log(`[Storage] Defects fetched with filters. Found total ${count} items.`);
-        return { data, totalCount: count };
-    },
 
-    /**
-     * Get ALL defects for Excel export (no pagination, filters applied, no image columns)
-     */
-    async getAllDefectsForExport(filters = {}) {
-        console.log("[Storage] Fetching all defects for export (no pagination)...", filters);
-
-        let query = supabaseClient
-            .from('defects')
-            .select('defect_id, test_type, title, defect_identification, severity, priority, status, menu_name, screen_name, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end')
-            .eq('is_deleted', 'N');
-
-        // Apply same filters as list view
-        if (filters.severity) query = query.eq('severity', filters.severity);
-        if (filters.status) query = query.eq('status', filters.status);
-        if (filters.testType) query = query.eq('test_type', filters.testType);
-        if (filters.identification) query = query.eq('defect_identification', filters.identification);
-        if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
-        if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
-        if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
-        if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
-
-        const { data, error } = await query.order('created_at', { ascending: false });
-
-        if (error) {
-            console.error("[Storage] Error fetching all defects for export:", error.message);
-            throw error;
-        }
-        console.log(`[Storage] Export data fetched: ${data.length} items.`);
-        return data;
+        return { data: data || [], totalCount: count || 0 };
     },
 
     async getDefectById(id) {
@@ -139,22 +147,20 @@ const StorageService = {
         return data;
     },
 
-    /**
-     * Get minimal defect data for dashboard stats to reduce payload size
-     */
-    async getDefectsSummaryForStats() {
-        console.log("[Storage] Fetching minimal data for stats...");
+    async getUsers() {
+        console.log("[Storage] Fetching user list...");
         const { data, error } = await supabaseClient
-            .from('defects')
-            .select('defect_id, title, status, severity, test_type, creator, created_at')
-            .eq('is_deleted', 'N');
+            .from('users')
+            .select('*')
+            .order('name', { ascending: true });
 
         if (error) {
-            console.error("[Storage] Error fetching stats summary:", error.message);
+            console.error("[Storage] Error fetching users:", error.message);
             throw error;
         }
         return data;
     },
+
 
     /**
      * Helper: Convert DataURL (Base64) to Blob

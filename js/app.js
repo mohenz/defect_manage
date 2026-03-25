@@ -6,7 +6,7 @@ const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 
 window.App = {
     // --- Utils ---
-    this.pct(val, total) {
+    pct(val, total) {
         return total > 0 ? Math.round(val / total * 100) : 0;
     },
 
@@ -61,10 +61,67 @@ window.App = {
         selectedDefect: null,
         commonCodes: []
     },
+    async init() {
+        console.log("[App] 1. Initializing...");
+        try {
+            console.log("[App] 2. StorageService Init..."); StorageService.init();
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                this.state.currentUser = JSON.parse(savedUser);
+                this.state.isLoggedIn = true;
+                this.state.currentRole = this.state.currentUser.role;
+                document.body.classList.add('logged-in');
+            }
+
+            // Load Common Codes
+            try {
+                console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
+            } catch (err) {
+                console.error("[App] Common codes load failed:", err);
+            }
+
+            console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
+            this.bindEvents();
+        } catch (err) {
+            console.error("[App] Init failed:", err);
+        }
+    },
+
+    async fetchData() { console.log("[App] [fetchData] Starting...");
+        console.log("[App] Fetching data...");
+        try {
+            console.log("[App] [fetchData] 1. Fetching Stats Summary..."); this.state.allDefectsSummary = await StorageService.getDefectsSummaryForStats() || []; console.log("[App] [fetchData] 2. Stats Summary Loaded.");
+            const result = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, this.state.listConfig.search);
+            this.state.defects = result.data;
+            this.state.totalDefectCount = result.totalCount;
+            this.state.users = await StorageService.getUsers() || [];
+            
+            this.getFilteredDefects(); // Updates stats
+            console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
+            
+            if (!this.state.initialRouteHandled) {
+                const hash = window.location.hash.substring(1) || 'dashboard';
+                this.navigate(hash);
+                this.state.initialRouteHandled = true;
+            }
+        } catch (err) {
+            console.error("[App] FetchData failed:", err);
+        }
+    },
+
+    bindEvents() {
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.substring(1) || 'dashboard';
+            if (this.state.currentView !== hash) {
+                this.navigate(hash);
+            }
+        });
+    },
+
 
     getFilteredDefects() {
         const d = (this.state.allDefectsSummary || []).filter(d => 
-            this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트'))
+            (this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트')) || this.getCodesByGroup('TEST_TYPE').length === 0)
         );
 
         this.state.stats = {
@@ -85,7 +142,7 @@ window.App = {
 
         if (!this.state.isLoggedIn && !isStandaloneRegister && !isAuthView) {
             this.state.currentView = 'login';
-            this.render();
+            console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
             return;
         }
 
@@ -118,7 +175,7 @@ window.App = {
         document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
         const navItem = document.querySelector(`[data-view="${view}"]`);
         if (navItem) navItem.classList.add('active');
-        this.render();
+        console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
     },
 
     render() {
@@ -617,7 +674,7 @@ window.App = {
         // Refresh calculations and UI
         this.calculateStats();
         alert('설정이 전역적으로 저장되었습니다.');
-        this.render();
+        console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
     },
 
     async deleteUser(id) {
@@ -679,7 +736,7 @@ window.App = {
         const stats = this.state.stats;
         // All necessary summary data is now in state.allDefectsSummary
         const defects = this.state.allDefectsSummary.filter(d =>
-            this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트'))
+            (this.getCodesByGroup('TEST_TYPE').some(c => c.code_value === (d.test_type || '단위테스트')) || this.getCodesByGroup('TEST_TYPE').length === 0)
         );
 
         // 1. 등록자별/심각도별 통계 계산
@@ -1632,14 +1689,14 @@ window.App = {
                 alert('조치 결과가 저장되었습니다.');
                 // 2. Load Common Codes (Added for Phase 3-1)
             try {
-                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
                 console.log("[App] Common codes loaded:", this.state.commonCodes.length);
             } catch (err) {
                 console.error("[App] Failed to load common codes:", err);
                 this.state.commonCodes = [];
             }
 
-            await this.fetchData();
+            console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
                 this.closeModal();
             }
         });
@@ -1666,14 +1723,14 @@ window.App = {
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
             // 2. Load Common Codes (Added for Phase 3-1)
             try {
-                this.state.commonCodes = await StorageService.fetchCommonCodes();
+                console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
                 console.log("[App] Common codes loaded:", this.state.commonCodes.length);
             } catch (err) {
                 console.error("[App] Failed to load common codes:", err);
                 this.state.commonCodes = [];
             }
 
-            await this.fetchData();
+            console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
             this.closeModal();
             if (!id) this.navigate('list');
             return;
