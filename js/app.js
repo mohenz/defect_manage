@@ -1368,9 +1368,9 @@ window.App = {
                         <label style="font-size: 0.75rem;">등록기간 (종료)</label>
                         <input type="date" id="searchDateEnd" value="${search.dateEnd}">
                     </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                        <button class="btn btn-primary" onclick="App.handleSearch()" style="flex: 1; justify-content: center; height: 42px; font-size: 0.875rem;"><i class="fas fa-search"></i> 조회</button>
-                        <button class="btn" onclick="App.resetFilters()" style="flex: 1; height: 42px; font-size: 0.875rem; background: var(--bg-secondary); border: 1px solid var(--border); justify-content: center;"><i class="fas fa-rotate-left"></i> 초기화</button>
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-end; grid-column: span 2;">
+                        <button class="btn btn-primary" onclick="App.handleSearch()" style="flex: 1; justify-content: center; height: 42px; font-size: 0.875rem; white-space: nowrap;"><i class="fas fa-search"></i> 조회</button>
+                        <button class="btn" onclick="App.resetFilters()" style="flex: 1; height: 42px; font-size: 0.875rem; white-space: nowrap; background: var(--bg-secondary); border: 1px solid var(--border); justify-content: center;"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                 </div>
             </div>
