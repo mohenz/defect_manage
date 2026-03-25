@@ -5,6 +5,62 @@
 
 ---
 
+## [2026-03-25] 설정/팝업/연동 안정화 및 운영 기능 보강
+
+### 🐛 버그 수정
+
+#### 10. 로그인/대시보드 미출력 문제 수정
+- **원인**: `js/storage.js` 내 잘못된 문자열 토큰(`\n`)으로 스크립트 파싱이 실패하여 `StorageService` 로딩이 중단됨
+- **변경 사항**:
+  - 문법 오류 제거
+  - 배포 전 문법 오류를 점검할 수 있도록 `check:syntax` 스크립트 추가
+- **수정 파일**: `js/storage.js`, `package.json`, `scripts/check-syntax.js`
+
+#### 11. 좌측 메뉴 링크 및 결함 등록/수정 동작 복구
+- **원인**: 메뉴 클릭이 라우팅 함수와 연결되지 않았고, 결함 등록/수정 경로에서 필요한 보조 함수가 누락되어 있었음
+- **변경 사항**:
+  - 좌측 메뉴 클릭 시 `App.navigate()` 호출되도록 이벤트 연결
+  - `getEffectiveRole()`, `canEditAssignee()`, `getSelectedDefect()`, `calculateStats()`, `buildDefectPayload()` 복구
+  - `대시보드`, `결함목록`, `결함등록`, `담당자관리`, `설정` 화면 이동 정상화
+  - 결함 정보 관리 화면의 `수정완료` 버튼 저장 동작 복구
+- **수정 파일**: `js/app.js`
+
+#### 12. 테스트벤치 연동 신규 결함 등록 팝업 복구
+- **원인**: `mode=standalone` 초기화, `DEFECTFLOW_READY`/`DEFECTFLOW_DATA` 메시지 처리, 로그인 후 복귀 흐름이 누락되어 캡처 데이터가 등록 화면으로 전달되지 않았음
+- **변경 사항**:
+  - `initializeRuntimeContext()` 추가
+  - `postMessage` 기반 `DEFECTFLOW_READY` 송수신 로직 복구
+  - `localStorage.pending_defect` 및 로그인 후 `returnTo=register` 복귀 흐름 복구
+  - 이벤트 바인딩 시점을 초기화 초반으로 조정해 메시지 유실 방지
+- **수정 파일**: `js/app.js`
+
+### 🔧 기능 개선
+
+#### 13. 테스트 구분 설정의 전역 적용
+- **변경 전**: 테스트 구분 설정값이 일부 저장만 되고, 새로고침 후 재로딩이나 실제 화면 필터링에 반영되지 않음
+- **변경 후**:
+  - 앱 시작 시 `app_settings`에서 설정값을 로드
+  - 대시보드, 결함 목록, 등록/수정 폼, 엑셀 다운로드에 동일한 전역 테스트 구분 설정 적용
+  - 설정 저장 후 즉시 재조회 및 재렌더링 수행
+- **수정 파일**: `js/app.js`, `js/storage.js`
+
+#### 14. 환경설정 화면 탭 분리 및 공통코드 관리 기능 추가
+- **변경 사항**:
+  - 환경설정 화면을 `테스트 구분 설정` / `공통코드 관리` 탭으로 분리
+  - 공통코드 목록 조회, 코드 추가, 수정, 삭제 UI 추가
+  - `StorageService.saveCommonCode()`, `StorageService.deleteCommonCode()` 추가
+- **수정 파일**: `js/app.js`, `js/storage.js`
+
+#### 15. 신규 결함 등록 팝업 레이아웃 개선
+- **변경 전**: Standalone 팝업에서 등록 폼 좌우 여백이 커서 창을 충분히 활용하지 못함
+- **변경 후**:
+  - 팝업 전용 `modal-content` 패딩 축소
+  - `#modalBody` 높이/폭 활용도 조정
+  - `form-container`가 팝업 내부 폭을 더 넓게 사용하도록 스타일 보정
+- **수정 파일**: `css/style.css`
+
+---
+
 ## [2026-03-25] 공통코드(Common Code) 시스템 전면 도입 및 리팩토링
 
 ### ✨ 신규 기능 및 구조 개선
