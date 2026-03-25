@@ -58,6 +58,23 @@ window.App = {
         return filteredCodes;
     },
 
+    getUserStatusOptions(selectedValue = '') {
+        const defaults = [
+            { code_value: '사용', code_name: '사용' },
+            { code_value: '미사용', code_name: '미사용' }
+        ];
+
+        if (selectedValue && !defaults.some(option => option.code_value === selectedValue)) {
+            return [...defaults, { code_value: selectedValue, code_name: selectedValue }];
+        }
+
+        return defaults;
+    },
+
+    isUserActive(status) {
+        return status === '사용';
+    },
+
     state: {
         currentView: 'dashboard',
         defects: [],
@@ -366,7 +383,7 @@ window.App = {
             try {
                 const user = await StorageService.findUserByEmail(email);
                 if (user) {
-                    if (user.status === '사용중지') {
+                    if (!this.isUserActive(user.status)) {
                         alert('비활성화된 계정입니다. 관리자에게 문의하세요.');
                         return;
                     }
@@ -627,7 +644,7 @@ window.App = {
                                 <td>${this.sanitize(u.department)}</td>
                                 <td><strong>${this.sanitize(u.name)}</strong></td>
                                 <td>${this.sanitize(u.email)}</td>
-                                <td><span class="badge" style="background: ${u.status === '사용' ? '#dcfce7' : '#fee2e2'}; color: ${u.status === '사용' ? '#166534' : '#991b1b'};">${u.status}</span></td>
+                                <td><span class="badge" style="background: ${this.isUserActive(u.status) ? '#dcfce7' : '#fee2e2'}; color: ${this.isUserActive(u.status) ? '#166534' : '#991b1b'};">${u.status}</span></td>
                                 <td>${this.formatDateKST(u.created_at)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
@@ -680,8 +697,8 @@ window.App = {
                 <div class="form-group">
                     <label>상태</label>
                     <select name="status">
-                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
-                            </select>
+                        ${this.getUserStatusOptions(user.status || '사용').map(option => `<option value="${option.code_value}" ${user.status === option.code_value ? 'selected' : ''}>${option.code_name}</option>`).join('')}
+                    </select>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 2.5rem;">
                     <button type="submit" class="btn btn-primary" style="flex: 1;">${id ? '저장하기' : '등록하기'}</button>
@@ -699,6 +716,7 @@ window.App = {
 
     async handleUserSubmit(id, formData) {
         const payload = Object.fromEntries(formData.entries());
+        payload.status = payload.status || '사용';
         if (await StorageService.saveUser(payload, id)) {
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
             this.fetchData();
@@ -1734,7 +1752,7 @@ window.App = {
                     <div class="form-group">
                         <label>테스트 구분</label>
                         <select name="test_type" required>
-                                ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" \${item.test_type === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" ${item.test_type === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                     </div>
 
@@ -1747,14 +1765,14 @@ window.App = {
                         <div class="form-group">
                             <label>심각도</label>
                             <select name="severity" ${(!id || this.state.currentRole === '관리자' || (this.state.currentUser && item.creator === this.state.currentUser.name)) ? '' : 'disabled'}>
-                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" \${item.severity === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" ${item.severity === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                             ${(id && this.state.currentRole !== '관리자' && (this.state.currentUser && item.creator !== this.state.currentUser.name)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 심각도는 작성자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
                         <div class="form-group">
                             <label>우선순위</label>
                             <select name="priority">
-                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" \${item.priority === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" ${item.priority === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -1770,7 +1788,7 @@ window.App = {
                             <label>등록자 (테스터) (필수) ${canEditCreator ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
                             <select name="creator" required ${canEditCreator ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
-                                ${this.state.users.filter(u => u.status === '사용').map(u => `
+                                ${this.state.users.filter(u => this.isUserActive(u.status)).map(u => `
                                     <option value="${this.sanitize(u.name)}" ${(item.creator || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
@@ -1780,7 +1798,7 @@ window.App = {
                             <label>담당자 (조치자) ${canAssign ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
                             <select name="assignee" ${canAssign ? '' : 'disabled'}>
                                 <option value="">선택 안함</option>
-                                ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
+                                ${this.state.users.filter(u => this.isUserActive(u.status) && u.role === '조치자').map(u => `
                                     <option value="${this.sanitize(u.name)}" ${item.assignee === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                                 `).join('')}
                             </select>
@@ -1847,14 +1865,14 @@ window.App = {
                         <div class="form-group">
                             <label>변경할 상태</label>
                             <select name="status">
-                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
+                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" ${item.status === c.code_value ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group">
                             <label>결함식별 (조치자/관리자 전용)</label>
                             <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
-                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" \${item.defect_identification === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" ${item.defect_identification === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                             ${(!['조치자', '관리자'].includes(this.state.currentRole)) ? '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 조치자 또는 관리자만 수정 가능합니다.</p>' : ''}
                         </div>
@@ -1909,7 +1927,7 @@ window.App = {
                     <label>담당자 (조치자) (필수) ${['관리자', '조치자'].includes(this.state.currentRole) ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
                     <select name="assignee" required ${['관리자', '조치자'].includes(this.state.currentRole) ? '' : 'disabled'}>
                         <option value="">선택하세요</option>
-                        ${this.state.users.filter(u => u.status === '사용' && u.role === '조치자').map(u => `
+                        ${this.state.users.filter(u => this.isUserActive(u.status) && u.role === '조치자').map(u => `
                             <option value="${this.sanitize(u.name)}" ${(item.assignee || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
                         `).join('')}
                     </select>
@@ -1936,14 +1954,14 @@ window.App = {
                     <div class="form-group">
                         <label>변경할 상태</label>
                         <select name="status">
-                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" \${item.status === '${c.code_value}' ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
+                                ${this.getCodesByGroup('STATUS').map(c => `<option value="${c.code_value}" ${item.status === c.code_value ? 'selected' : ''}>${c.code_name} (${c.code_value})</option>`).join('')}
                             </select>
                     </div>
                     <div class="form-group">
                         <label>결함식별 (필수)</label>
                         <select name="defect_identification" ${(['조치자', '관리자'].includes(this.state.currentRole)) ? '' : 'disabled'}>
                                 <option value="">선택하세요</option>
-                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" \${item.defect_identification === '${c.code_value}' ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `<option value="${c.code_value}" ${item.defect_identification === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
                             </select>
                     </div>
                 </div>
