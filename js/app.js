@@ -271,6 +271,13 @@ window.App = {
             return;
         }
 
+        const operatorViews = ['assignee-status'];
+        if (operatorViews.includes(view) && !['조치자', '관리자'].includes(this.state.currentRole)) {
+            alert('조치자 또는 관리자 권한이 필요한 메뉴입니다.');
+            this.navigate('dashboard');
+            return;
+        }
+
         // Admin view check
         const adminViews = ['users', 'settings'];
         if (adminViews.includes(view) && this.state.currentRole !== '관리자') {
@@ -304,6 +311,7 @@ window.App = {
         switch (this.state.currentView) {
             case 'dashboard': this.renderDashboard(root); break;
             case 'list': this.renderList(root); break;
+            case 'assignee-status': this.renderAssigneeStatusScreen(root); break;
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
             case 'login': this.renderLogin(root); break;
@@ -315,6 +323,12 @@ window.App = {
     updateSidebar() {
         const loggedIn = this.state.isLoggedIn;
         const user = this.state.currentUser;
+
+        // Operator Menus
+        const operatorMenu = document.getElementById('operatorMenus');
+        if (operatorMenu) {
+            operatorMenu.style.display = (loggedIn && user && ['조치자', '관리자'].includes(user.role)) ? 'block' : 'none';
+        }
 
         // Admin Menus
         const adminMenu = document.getElementById('adminOnlyMenus');
@@ -739,8 +753,8 @@ window.App = {
         container.innerHTML = `
             <header class="animate-in">
                 <div>
-                    <h1>환경 설정</h1>
-                    <p class="subtitle">애플리케이션 운영에 필요한 전역 설정을 관리합니다.</p>
+                    <h1>관리자 화면</h1>
+                    <p class="subtitle">운영 현황과 전역 설정, 공통코드를 관리자 기준으로 관리합니다.</p>
                 </div>
             </header>
 
@@ -856,6 +870,127 @@ window.App = {
                 this.updateSettings({ enabledTestTypes: checked });
             };
         }
+    },
+
+    renderAssigneeStatusScreen(container) {
+        container.innerHTML = `
+            <header class="animate-in">
+                <div>
+                    <h1>결함 조치 현황</h1>
+                    <p class="subtitle">조치자별 결함 배정 현황과 상태별 처리 건수를 확인합니다.</p>
+                </div>
+            </header>
+
+            <div class="form-container animate-in" style="max-width: 100%;">
+                ${this.renderAssigneeStatusPanel()}
+            </div>
+        `;
+    },
+
+    renderAssigneeStatusPanel() {
+        const defects = (this.state.allDefectsSummary || []).filter(d => this.isTestTypeEnabled(d.test_type));
+        const assignees = (this.state.users || [])
+            .filter(user => user.role === '조치자')
+            .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        const statusCodes = this.getCodesByGroup('STATUS');
+        const rows = assignees.map(user => {
+            const assignedDefects = defects.filter(defect => defect.assignee === user.name);
+            const counts = {};
+            statusCodes.forEach(code => {
+                counts[code.code_value] = assignedDefects.filter(defect => defect.status === code.code_value).length;
+            });
+
+            return {
+                user,
+                total: assignedDefects.length,
+                counts
+            };
+        });
+
+        const totalAssignedDefects = rows.reduce((sum, row) => sum + row.total, 0);
+        const activeAssigneeCount = rows.filter(row => row.total > 0).length;
+        const unassignedCount = defects.filter(defect => !defect.assignee).length;
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                <div>
+                    <h2 style="margin-bottom: 0.5rem;"><i class="fas fa-user-check"></i> 결함 조치 현황</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                        조치자별 결함 배정 현황과 상태별 처리 건수를 확인합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+                <div class="stat-card">
+                    <div class="stat-value">${assignees.length}</div>
+                    <div class="stat-label">등록된 조치자</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${activeAssigneeCount}</div>
+                    <div class="stat-label">배정된 조치자</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalAssignedDefects}</div>
+                    <div class="stat-label">배정된 결함 수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${unassignedCount}</div>
+                    <div class="stat-label">미배정 결함 수</div>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <table style="min-width: 1200px;">
+                    <thead>
+                        <tr>
+                            <th>조치자</th>
+                            <th>소속</th>
+                            <th>상태</th>
+                            <th style="text-align:center;">총 건수</th>
+                            ${statusCodes.map(code => `
+                                <th style="text-align:center; color:${code.color || 'inherit'};">${code.code_name}</th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => `
+                            <tr>
+                                <td><strong>${this.sanitize(row.user.name)}</strong></td>
+                                <td>${this.sanitize(row.user.department || '-')}</td>
+                                <td><span class="badge" style="background: ${this.isUserActive(row.user.status) ? '#dcfce7' : '#fee2e2'}; color: ${this.isUserActive(row.user.status) ? '#166534' : '#991b1b'};">${this.sanitize(row.user.status || '-')}</span></td>
+                                <td style="text-align:center;">
+                                    ${row.total > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick="App.viewAssigneeDefects('${this.sanitize(row.user.name)}')"><strong>${row.total}</strong></button>`
+                : '<strong>0</strong>'}
+                                </td>
+                                ${statusCodes.map(code => `
+                                    <td style="text-align:center;">${row.counts[code.code_value] || 0}</td>
+                                `).join('')}
+                            </tr>
+                        `).join('') || `<tr><td colspan="${4 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    viewAssigneeDefects(assigneeName) {
+        this.state.listConfig.search = {
+            severity: '',
+            status: '',
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: assigneeName,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
+        this.fetchData();
     },
 
     renderCommonCodeForm(groupCode = '', codeValue = '') {

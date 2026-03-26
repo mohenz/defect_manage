@@ -170,7 +170,7 @@ const StorageService = {
             try {
                 const { data, error } = await supabaseClient
                     .from('defects')
-                    .select('defect_id, title, status, severity, test_type, creator, created_at')
+                    .select('defect_id, title, status, severity, test_type, creator, assignee, created_at')
                     .eq('is_deleted', 'N');
 
                 if (error) throw error;

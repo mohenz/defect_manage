@@ -23,11 +23,17 @@
             <li><a href="#" class="nav-item" data-view="list"><i class="fas fa-list-check"></i> 결함 목록</a></li>
             <li><a href="#" class="nav-item" data-view="register"><i class="fas fa-plus-circle"></i> 결함 등록</a></li>
 
-            <!-- 관리전용 메뉴 그룹 -->
+            <!-- 조치자/관리자 전용 메뉴 그룹 -->
+            <div id="operatorMenus"
+                style="display: none; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1rem; padding-top: 1rem;">
+                <li><a href="#" class="nav-item" data-view="assignee-status"><i class="fas fa-user-check"></i> 결함 조치 현황</a></li>
+            </div>
+
+            <!-- 관리자 전용 메뉴 그룹 -->
             <div id="adminOnlyMenus"
                 style="display: none; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1rem; padding-top: 1rem;">
                 <li><a href="#" class="nav-item" data-view="users"><i class="fas fa-users-cog"></i> 담당자 관리</a></li>
-                <li><a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> 설정</a></li>
+                <li><a href="#" class="nav-item" data-view="settings"><i class="fas fa-cog"></i> 관리자 화면</a></li>
             </div>
         </ul>
 
