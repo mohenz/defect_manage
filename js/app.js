@@ -906,8 +906,15 @@ window.App = {
                 counts
             };
         });
+        const totals = {
+            total: rows.reduce((sum, row) => sum + row.total, 0),
+            counts: {}
+        };
+        statusCodes.forEach(code => {
+            totals.counts[code.code_value] = rows.reduce((sum, row) => sum + (row.counts[code.code_value] || 0), 0);
+        });
 
-        const totalAssignedDefects = rows.reduce((sum, row) => sum + row.total, 0);
+        const totalAssignedDefects = totals.total;
         const activeAssigneeCount = rows.filter(row => row.total > 0).length;
         const unassignedCount = defects.filter(defect => !defect.assignee).length;
         const completedDefects = defects.filter(defect =>
@@ -983,6 +990,17 @@ window.App = {
                             </tr>
                         `).join('') || `<tr><td colspan="${4 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
                     </tbody>
+                    ${rows.length > 0 ? `
+                        <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
+                            <tr>
+                                <td colspan="3" style="padding: 1rem;">합계</td>
+                                <td style="text-align:center; padding: 1rem;">${totals.total}</td>
+                                ${statusCodes.map(code => `
+                                    <td style="text-align:center; padding: 1rem; color:${code.color || 'inherit'};">${totals.counts[code.code_value] || 0}</td>
+                                `).join('')}
+                            </tr>
+                        </tfoot>
+                    ` : ''}
                 </table>
             </div>
         `;
