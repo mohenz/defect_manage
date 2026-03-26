@@ -910,6 +910,12 @@ window.App = {
         const totalAssignedDefects = rows.reduce((sum, row) => sum + row.total, 0);
         const activeAssigneeCount = rows.filter(row => row.total > 0).length;
         const unassignedCount = defects.filter(defect => !defect.assignee).length;
+        const completedDefects = defects.filter(defect =>
+            ['Resolved', 'Staging', 'Closed'].includes(defect.status)
+        ).length;
+        const completionRate = defects.length > 0
+            ? Math.round((completedDefects / defects.length) * 100)
+            : 0;
 
         return `
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
@@ -937,6 +943,13 @@ window.App = {
                 <div class="stat-card">
                     <div class="stat-value">${unassignedCount}</div>
                     <div class="stat-label">미배정 결함 수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span>${completionRate}%</span>
+                        <span style="font-size: 1rem; font-weight: 600; color: var(--text-secondary);">${completedDefects}/${defects.length}</span>
+                    </div>
+                    <div class="stat-label">조치완료율</div>
                 </div>
             </div>
 
