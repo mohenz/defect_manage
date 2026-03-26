@@ -890,7 +890,7 @@ window.App = {
     renderAssigneeStatusPanel() {
         const defects = (this.state.allDefectsSummary || []).filter(d => this.isTestTypeEnabled(d.test_type));
         const assignees = (this.state.users || [])
-            .filter(user => user.role === '조치자')
+            .filter(user => user.role === '조치자' && this.isUserActive(user.status))
             .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
         const statusCodes = this.getCodesByGroup('STATUS');
         const rows = assignees.map(user => {
