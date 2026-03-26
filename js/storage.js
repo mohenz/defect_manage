@@ -200,6 +200,8 @@ const StorageService = {
 
         if (filters.severity) query = query.eq('severity', filters.severity);
         if (filters.status) query = query.eq('status', filters.status);
+        if (filters.title) query = query.ilike('title', `%${filters.title}%`);
+        if (filters.stepsToRepro) query = query.ilike('steps_to_repro', `%${filters.stepsToRepro}%`);
         if (filters.testType) query = query.eq('test_type', filters.testType);
         if (Array.isArray(filters.enabledTestTypes) && filters.enabledTestTypes.length > 0) {
             query = query.in('test_type', filters.enabledTestTypes);
@@ -231,6 +233,8 @@ const StorageService = {
 
         if (filters.severity) query = query.eq('severity', filters.severity);
         if (filters.status) query = query.eq('status', filters.status);
+        if (filters.title) query = query.ilike('title', `%${filters.title}%`);
+        if (filters.stepsToRepro) query = query.ilike('steps_to_repro', `%${filters.stepsToRepro}%`);
         if (filters.testType) query = query.eq('test_type', filters.testType);
         if (Array.isArray(filters.enabledTestTypes) && filters.enabledTestTypes.length > 0) {
             query = query.in('test_type', filters.enabledTestTypes);

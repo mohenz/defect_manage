@@ -93,6 +93,8 @@ window.App = {
             search: {
                 severity: '',
                 status: '',
+                title: '',
+                stepsToRepro: '',
                 creator: '',
                 assignee: '',
                 testType: '',
@@ -1482,6 +1484,14 @@ window.App = {
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">결함 제목</label>
+                        <input type="text" id="searchTitle" value="${search.title}" onkeydown="if(event.key==='Enter') App.handleSearch()" placeholder="제목 키워드 검색 (Enter)">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">재현단계</label>
+                        <input type="text" id="searchStepsToRepro" value="${search.stepsToRepro}" onkeydown="if(event.key==='Enter') App.handleSearch()" placeholder="재현단계 키워드 검색 (Enter)">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">등록자</label>
                         <input type="text" id="searchCreator" value="${search.creator}" onkeydown="if(event.key==='Enter') App.handleSearch()" placeholder="이름 검색 (Enter)">
                     </div>
@@ -1588,6 +1598,8 @@ window.App = {
         this.state.listConfig.search = {
             severity: document.getElementById('searchSeverity').value,
             status: document.getElementById('searchStatus').value,
+            title: document.getElementById('searchTitle').value,
+            stepsToRepro: document.getElementById('searchStepsToRepro').value,
             creator: document.getElementById('searchCreator').value,
             assignee: document.getElementById('searchAssignee').value,
             testType: document.getElementById('searchTestType').value,
@@ -1603,6 +1615,8 @@ window.App = {
         this.state.listConfig.search = {
             severity: '',
             status: '',
+            title: '',
+            stepsToRepro: '',
             creator: '',
             assignee: '',
             testType: '',
