@@ -893,19 +893,35 @@ window.App = {
             .filter(user => user.role === '조치자' && this.isUserActive(user.status))
             .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
         const statusCodes = this.getCodesByGroup('STATUS');
-        const rows = assignees.map(user => {
-            const assignedDefects = defects.filter(defect => defect.assignee === user.name);
+        const completedStatuses = ['Resolved', 'Staging', 'Closed'];
+        const buildStatusRow = (label, department, userStatus, assignedDefects, isUnassigned = false) => {
             const counts = {};
             statusCodes.forEach(code => {
                 counts[code.code_value] = assignedDefects.filter(defect => defect.status === code.code_value).length;
             });
+            const completed = assignedDefects.filter(defect => completedStatuses.includes(defect.status)).length;
 
             return {
-                user,
+                user: {
+                    name: label,
+                    department,
+                    status: userStatus
+                },
                 total: assignedDefects.length,
-                counts
+                counts,
+                completed,
+                completionRate: assignedDefects.length > 0 ? this.pct(completed, assignedDefects.length) : 0,
+                isUnassigned
             };
+        };
+        const rows = assignees.map(user => {
+            const assignedDefects = defects.filter(defect => defect.assignee === user.name);
+            return buildStatusRow(user.name, user.department || '-', user.status || '-', assignedDefects);
         });
+        const unassignedDefects = defects.filter(defect => !defect.assignee);
+        if (unassignedDefects.length > 0) {
+            rows.push(buildStatusRow('미배정', '-', '미배정', unassignedDefects, true));
+        }
         const totals = {
             total: rows.reduce((sum, row) => sum + row.total, 0),
             counts: {}
@@ -913,12 +929,14 @@ window.App = {
         statusCodes.forEach(code => {
             totals.counts[code.code_value] = rows.reduce((sum, row) => sum + (row.counts[code.code_value] || 0), 0);
         });
+        totals.completed = rows.reduce((sum, row) => sum + row.completed, 0);
+        totals.completionRate = totals.total > 0 ? this.pct(totals.completed, totals.total) : 0;
 
         const totalAssignedDefects = totals.total;
         const activeAssigneeCount = rows.filter(row => row.total > 0).length;
         const unassignedCount = defects.filter(defect => !defect.assignee).length;
         const completedDefects = defects.filter(defect =>
-            ['Resolved', 'Staging', 'Closed'].includes(defect.status)
+            completedStatuses.includes(defect.status)
         ).length;
         const completionRate = defects.length > 0
             ? Math.round((completedDefects / defects.length) * 100)
@@ -945,7 +963,7 @@ window.App = {
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${totalAssignedDefects}</div>
-                    <div class="stat-label">배정된 결함 수</div>
+                    <div class="stat-label">표시 결함 수</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${unassignedCount}</div>
@@ -971,6 +989,7 @@ window.App = {
                             ${statusCodes.map(code => `
                                 <th style="text-align:center; color:${code.color || 'inherit'};">${code.code_name}</th>
                             `).join('')}
+                            <th style="text-align:center;">조치완료율</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -978,21 +997,27 @@ window.App = {
                             <tr>
                                 <td><strong>${this.sanitize(row.user.name)}</strong></td>
                                 <td>${this.sanitize(row.user.department || '-')}</td>
-                                <td><span class="badge" style="background: ${this.isUserActive(row.user.status) ? '#dcfce7' : '#fee2e2'}; color: ${this.isUserActive(row.user.status) ? '#166534' : '#991b1b'};">${this.sanitize(row.user.status || '-')}</span></td>
+                                <td><span class="badge" style="background: ${row.isUnassigned ? '#e2e8f0' : (this.isUserActive(row.user.status) ? '#dcfce7' : '#fee2e2')}; color: ${row.isUnassigned ? '#475569' : (this.isUserActive(row.user.status) ? '#166534' : '#991b1b')};">${this.sanitize(row.user.status || '-')}</span></td>
                                 <td style="text-align:center;">
-                                    ${row.total > 0
+                                    ${row.isUnassigned
+                ? `<strong>${row.total}</strong>`
+                : row.total > 0
                 ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick="App.viewAssigneeDefects('${this.sanitize(row.user.name)}')"><strong>${row.total}</strong></button>`
                 : '<strong>0</strong>'}
                                 </td>
                                 ${statusCodes.map(code => `
                                     <td style="text-align:center;">
-                                        ${code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
+                                        ${!row.isUnassigned && code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
                 ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(5, 150, 105, 0.08); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.2); justify-content:center;" onclick="App.viewAssigneeDefectsByStatus('${this.sanitize(row.user.name)}', 'Resolved')"><strong>${row.counts[code.code_value]}</strong></button>`
                 : (row.counts[code.code_value] || 0)}
                                     </td>
                                 `).join('')}
+                                <td style="text-align:center;">
+                                    <strong style="color: var(--success);">${row.completionRate}%</strong>
+                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed}/${row.total}</div>
+                                </td>
                             </tr>
-                        `).join('') || `<tr><td colspan="${4 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
+                        `).join('') || `<tr><td colspan="${5 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
                     </tbody>
                     ${rows.length > 0 ? `
                         <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
@@ -1002,6 +1027,10 @@ window.App = {
                                 ${statusCodes.map(code => `
                                     <td style="text-align:center; padding: 1rem; color:${code.color || 'inherit'};">${totals.counts[code.code_value] || 0}</td>
                                 `).join('')}
+                                <td style="text-align:center; padding: 1rem;">
+                                    <strong style="color: var(--success);">${totals.completionRate}%</strong>
+                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${totals.completed}/${totals.total}</div>
+                                </td>
                             </tr>
                         </tfoot>
                     ` : ''}
