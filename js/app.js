@@ -985,7 +985,11 @@ window.App = {
                 : '<strong>0</strong>'}
                                 </td>
                                 ${statusCodes.map(code => `
-                                    <td style="text-align:center;">${row.counts[code.code_value] || 0}</td>
+                                    <td style="text-align:center;">
+                                        ${code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(5, 150, 105, 0.08); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.2); justify-content:center;" onclick="App.viewAssigneeDefectsByStatus('${this.sanitize(row.user.name)}', 'Resolved')"><strong>${row.counts[code.code_value]}</strong></button>`
+                : (row.counts[code.code_value] || 0)}
+                                    </td>
                                 `).join('')}
                             </tr>
                         `).join('') || `<tr><td colspan="${4 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
@@ -1010,6 +1014,24 @@ window.App = {
         this.state.listConfig.search = {
             severity: '',
             status: '',
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: assigneeName,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
+        this.fetchData();
+    },
+
+    viewAssigneeDefectsByStatus(assigneeName, status) {
+        this.state.listConfig.search = {
+            severity: '',
+            status: status,
             title: '',
             stepsToRepro: '',
             creator: '',
