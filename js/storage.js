@@ -84,19 +84,56 @@ const StorageService = {
         };
 
         try {
-            if (originalKey && (originalKey.group_code !== normalized.group_code || originalKey.code_value !== normalized.code_value)) {
-                const { error: deleteError } = await supabaseClient
+            if (originalKey) {
+                const { data: existingRows, error: existingError } = await supabaseClient
                     .from('common_codes')
-                    .delete()
+                    .select('id')
                     .eq('group_code', originalKey.group_code)
                     .eq('code_value', originalKey.code_value);
 
-                if (deleteError) throw deleteError;
+                if (existingError) throw existingError;
+
+                if (!existingRows || existingRows.length === 0) {
+                    const { error: insertError } = await supabaseClient
+                        .from('common_codes')
+                        .insert([{ ...normalized, is_active: true }]);
+
+                    if (insertError) throw insertError;
+                    return true;
+                }
+
+                const { error: updateError } = await supabaseClient
+                    .from('common_codes')
+                    .update(normalized)
+                    .eq('group_code', originalKey.group_code)
+                    .eq('code_value', originalKey.code_value);
+
+                if (updateError) throw updateError;
+                return true;
+            }
+
+            const { data: duplicateRows, error: duplicateError } = await supabaseClient
+                .from('common_codes')
+                .select('id')
+                .eq('group_code', normalized.group_code)
+                .eq('code_value', normalized.code_value);
+
+            if (duplicateError) throw duplicateError;
+
+            if (duplicateRows && duplicateRows.length > 0) {
+                const { error: updateDuplicateError } = await supabaseClient
+                    .from('common_codes')
+                    .update(normalized)
+                    .eq('group_code', normalized.group_code)
+                    .eq('code_value', normalized.code_value);
+
+                if (updateDuplicateError) throw updateDuplicateError;
+                return true;
             }
 
             const { error } = await supabaseClient
                 .from('common_codes')
-                .upsert(normalized, { onConflict: 'group_code,code_value' });
+                .insert([{ ...normalized, is_active: true }]);
 
             if (error) throw error;
             return true;
