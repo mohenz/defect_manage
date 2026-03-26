@@ -983,7 +983,6 @@ window.App = {
                     <thead>
                         <tr>
                             <th>조치자</th>
-                            <th>소속</th>
                             <th style="text-align:center;">총 건수</th>
                             ${statusCodes.map(code => `
                                 <th style="text-align:center; color:${code.color || 'inherit'};">${code.code_name}</th>
@@ -995,7 +994,6 @@ window.App = {
                         ${rows.map(row => `
                             <tr>
                                 <td><strong>${this.sanitize(row.user.name)}</strong></td>
-                                <td>${this.sanitize(row.user.department || '-')}</td>
                                 <td style="text-align:center;">
                                     ${row.isUnassigned
                 ? `<strong>${row.total}</strong>`
@@ -1015,12 +1013,12 @@ window.App = {
                                     <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed}/${row.total}</div>
                                 </td>
                             </tr>
-                        `).join('') || `<tr><td colspan="${4 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
+                        `).join('') || `<tr><td colspan="${3 + statusCodes.length}" style="text-align:center; padding:2rem;">등록된 조치자가 없습니다.</td></tr>`}
                     </tbody>
                     ${rows.length > 0 ? `
                         <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
                             <tr>
-                                <td colspan="2" style="padding: 1rem;">합계</td>
+                                <td colspan="1" style="padding: 1rem;">합계</td>
                                 <td style="text-align:center; padding: 1rem;">${totals.total}</td>
                                 ${statusCodes.map(code => `
                                     <td style="text-align:center; padding: 1rem; color:${code.color || 'inherit'};">${totals.counts[code.code_value] || 0}</td>
