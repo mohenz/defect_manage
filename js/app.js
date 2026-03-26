@@ -97,6 +97,7 @@ window.App = {
                 stepsToRepro: '',
                 creator: '',
                 assignee: '',
+                assigneeUnassigned: false,
                 testType: '',
                 dateStart: '',
                 dateEnd: '',
@@ -180,16 +181,39 @@ window.App = {
         }
     },
 
-    async fetchData() { console.log("[App] [fetchData] Starting...");
+    getDataTargetView(viewHint = '') {
+        if (viewHint) return viewHint;
+
+        const hashView = window.location.hash.substring(1);
+        if (!this.state.initialRouteHandled) {
+            return hashView || this.state.currentView || 'dashboard';
+        }
+
+        return this.state.currentView || hashView || 'dashboard';
+    },
+
+    shouldLoadListData(view) {
+        return view === 'list';
+    },
+
+    async fetchData(options = {}) {
+        const targetView = this.getDataTargetView(options.viewHint);
+        const shouldLoadListData = options.includeListData ?? this.shouldLoadListData(targetView);
+
+        console.log(`[App] [fetchData] Starting... targetView=${targetView}, includeListData=${shouldLoadListData}`);
         console.log("[App] Fetching data...");
         try {
             console.log("[App] [fetchData] 1. Fetching Stats Summary..."); this.state.allDefectsSummary = await StorageService.getDefectsSummaryForStats() || []; console.log("[App] [fetchData] 2. Stats Summary Loaded.");
-            const result = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, {
-                ...this.state.listConfig.search,
-                enabledTestTypes: this.getEnabledTestTypes()
-            });
-            this.state.defects = result.data;
-            this.state.totalDefectCount = result.totalCount;
+
+            if (shouldLoadListData) {
+                const result = await StorageService.getDefects(this.state.listConfig.page, this.state.listConfig.pageSize, {
+                    ...this.state.listConfig.search,
+                    enabledTestTypes: this.getEnabledTestTypes()
+                });
+                this.state.defects = result.data;
+                this.state.totalDefectCount = result.totalCount;
+            }
+
             this.state.users = await StorageService.getUsers() || [];
             
             this.getFilteredDefects(); // Updates stats
@@ -250,6 +274,7 @@ window.App = {
 
     navigate(view) {
         if (!view) view = 'dashboard';
+        const previousView = this.state.currentView;
 
         // Authentication Guard
         // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
@@ -299,6 +324,10 @@ window.App = {
         const navItem = document.querySelector(`[data-view="${view}"]`);
         if (navItem) navItem.classList.add('active');
         console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
+
+        if (view === 'list' && previousView !== 'list' && this.state.initialRouteHandled) {
+            this.fetchData({ viewHint: 'list' });
+        }
     },
 
     render() {
@@ -963,7 +992,7 @@ window.App = {
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${totalAssignedDefects}</div>
-                    <div class="stat-label">표시 결함 수</div>
+                    <div class="stat-label">집계 대상 결함 수</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${unassignedCount}</div>
@@ -996,14 +1025,18 @@ window.App = {
                                 <td><strong>${this.sanitize(row.user.name)}</strong></td>
                                 <td style="text-align:center;">
                                     ${row.isUnassigned
-                ? `<strong>${row.total}</strong>`
+                ? row.total > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects()"><strong>${row.total}</strong></button>`
+                : '<strong>0</strong>'
                 : row.total > 0
                 ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick="App.viewAssigneeDefects('${this.sanitize(row.user.name)}')"><strong>${row.total}</strong></button>`
                 : '<strong>0</strong>'}
                                 </td>
                                 ${statusCodes.map(code => `
                                     <td style="text-align:center;">
-                                        ${!row.isUnassigned && code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
+                                        ${row.isUnassigned && (row.counts[code.code_value] || 0) > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects('${code.code_value}')"><strong>${row.counts[code.code_value]}</strong></button>`
+                : !row.isUnassigned && code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
                 ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(5, 150, 105, 0.08); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.2); justify-content:center;" onclick="App.viewAssigneeDefectsByStatus('${this.sanitize(row.user.name)}', 'Resolved')"><strong>${row.counts[code.code_value]}</strong></button>`
                 : (row.counts[code.code_value] || 0)}
                                     </td>
@@ -1043,6 +1076,7 @@ window.App = {
             stepsToRepro: '',
             creator: '',
             assignee: assigneeName,
+            assigneeUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -1050,7 +1084,6 @@ window.App = {
         };
         this.state.listConfig.page = 1;
         this.navigate('list');
-        this.fetchData();
     },
 
     viewAssigneeDefectsByStatus(assigneeName, status) {
@@ -1061,6 +1094,7 @@ window.App = {
             stepsToRepro: '',
             creator: '',
             assignee: assigneeName,
+            assigneeUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -1068,7 +1102,24 @@ window.App = {
         };
         this.state.listConfig.page = 1;
         this.navigate('list');
-        this.fetchData();
+    },
+
+    viewUnassignedDefects(status = '') {
+        this.state.listConfig.search = {
+            severity: '',
+            status: status,
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: '',
+            assigneeUnassigned: true,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
     },
 
     renderCommonCodeForm(groupCode = '', codeValue = '') {
@@ -1832,6 +1883,7 @@ window.App = {
             stepsToRepro: '',
             creator: '',
             assignee: '',
+            assigneeUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -2217,6 +2269,7 @@ window.App = {
 
             console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
                 this.closeModal();
+                this.navigate('list');
             }
         });
     },

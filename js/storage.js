@@ -4,6 +4,8 @@
 
 console.log("[Storage] Initializing Supabase Client with URL:", CONFIG.SUPABASE_URL);
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, test_type, creator, assignee';
+const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end';
 
 const StorageService = {
     /**
@@ -170,7 +172,7 @@ const StorageService = {
             try {
                 const { data, error } = await supabaseClient
                     .from('defects')
-                    .select('defect_id, title, status, severity, test_type, creator, assignee, created_at')
+                    .select(DEFECT_SUMMARY_COLUMNS)
                     .eq('is_deleted', 'N');
 
                 if (error) throw error;
@@ -195,7 +197,7 @@ const StorageService = {
 
         let query = supabaseClient
             .from('defects')
-            .select('*', { count: 'exact' })
+            .select(DEFECT_LIST_COLUMNS, { count: 'exact' })
             .eq('is_deleted', 'N');
 
         if (filters.severity) query = query.eq('severity', filters.severity);
@@ -208,7 +210,11 @@ const StorageService = {
         }
         if (filters.identification) query = query.eq('defect_identification', filters.identification);
         if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
-        if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
+        if (filters.assigneeUnassigned) {
+            query = query.or('assignee.is.null,assignee.eq.');
+        } else if (filters.assignee) {
+            query = query.ilike('assignee', `%${filters.assignee}%`);
+        }
         if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
         if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
 
@@ -241,7 +247,11 @@ const StorageService = {
         }
         if (filters.identification) query = query.eq('defect_identification', filters.identification);
         if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
-        if (filters.assignee) query = query.ilike('assignee', `%${filters.assignee}%`);
+        if (filters.assigneeUnassigned) {
+            query = query.or('assignee.is.null,assignee.eq.');
+        } else if (filters.assignee) {
+            query = query.ilike('assignee', `%${filters.assignee}%`);
+        }
         if (filters.dateStart) query = query.gte('created_at', filters.dateStart + 'T00:00:00');
         if (filters.dateEnd) query = query.lte('created_at', filters.dateEnd + 'T23:59:59');
 
