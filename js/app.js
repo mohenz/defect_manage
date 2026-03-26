@@ -368,8 +368,8 @@ window.App = {
                     </form>
                     
                     <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <div>계정이 없으신가요? <a href="#" onclick="App.navigate('signup')" style="color: var(--accent); font-weight: 600;">회원가입</a></div>
-                        <div>비밀번호를 잊으셨나요? <a href="#" onclick="App.navigate('password-reset')" style="color: var(--text-secondary); font-size: 0.8rem;">비밀번호 초기화</a></div>
+                        <div>계정이 없으신가요? <a href="#" onclick="App.navigate('signup'); return false;" style="color: var(--accent); font-weight: 600;">회원가입</a></div>
+                        <div>비밀번호를 잊으셨나요? <a href="#" onclick="App.navigate('password-reset'); return false;" style="color: var(--text-secondary); font-size: 0.8rem;">비밀번호 초기화</a></div>
                     </div>
                 </div>
             </div>
@@ -453,7 +453,7 @@ window.App = {
                     </form>
                     
                     <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
-                        이미 계정이 있으신가요? <a href="#" onclick="App.navigate('login')" style="color: var(--accent); font-weight: 600;">로그인</a>
+                        이미 계정이 있으신가요? <a href="#" onclick="App.navigate('login'); return false;" style="color: var(--accent); font-weight: 600;">로그인</a>
                     </div>
                 </div>
             </div>
@@ -540,7 +540,7 @@ window.App = {
                     </div>
                     
                     <div style="margin-top: 1.5rem; font-size: 0.875rem; text-align: center;">
-                        생각나셨나요? <a href="#" onclick="App.navigate('login')" style="color: var(--accent); font-weight: 600;">로그인으로 돌아가기</a>
+                        생각나셨나요? <a href="#" onclick="App.navigate('login'); return false;" style="color: var(--accent); font-weight: 600;">로그인으로 돌아가기</a>
                     </div>
                 </div>
             </div>
