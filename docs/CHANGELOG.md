@@ -24,6 +24,15 @@
   - 가이드 예제를 외부 스크립트 연결 방식으로 단순화
 - **수정 파일**: `docs/defectflow_report_widget_latest.js`, `docs/테스트대상_연동가이드.md`
 
+#### 48. 교체용 위젯에 같은 origin 자산 치환 기반 원클릭 캡처 적용
+- **배경**: 탭 캡처 방식은 정확도는 높지만, 사용자가 매번 공유 대상 탭을 선택해야 해 UX 부담이 컸음
+- **변경 사항**:
+  - 교체용 위젯 스크립트를 다시 원클릭 `html2canvas` 캡처 기반으로 조정
+  - `cos.emarteveryday.co.kr`, `cos-a.emarteveryday.co.kr` 계열 자산 URL을 캡처 직전에 현재 origin으로 임시 치환해 상품 이미지가 캡처되도록 보정
+  - 캡처 후 원래 URL로 즉시 복원하도록 처리
+  - 연동 가이드를 현재 구조에 맞게 수정
+- **수정 파일**: `docs/defectflow_report_widget_latest.js`, `docs/테스트대상_연동가이드.md`
+
 ## [2026-03-27] Vercel 테스트 페이지 라우트 추가
 
 ### 🔧 기능 개선

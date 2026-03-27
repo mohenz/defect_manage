@@ -1,5 +1,56 @@
 (function () {
     const DEFECTFLOW_URL = "https://mohenz.github.io/defect_manage/";
+    const HTML2CANVAS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    const SAME_ORIGIN_REWRITE_HOSTS = new Set([
+        "cos.emarteveryday.co.kr",
+        "cos-a.emarteveryday.co.kr"
+    ]);
+
+    function loadHtml2Canvas() {
+        if (typeof window.html2canvas !== "undefined") {
+            return Promise.resolve(window.html2canvas);
+        }
+
+        return new Promise((resolve, reject) => {
+            const existing = document.querySelector('script[data-defectflow-html2canvas="true"]');
+            if (existing) {
+                existing.addEventListener("load", () => resolve(window.html2canvas), { once: true });
+                existing.addEventListener("error", () => reject(new Error("html2canvas-load-failed")), { once: true });
+                return;
+            }
+
+            const script = document.createElement("script");
+            script.src = HTML2CANVAS_CDN;
+            script.async = true;
+            script.dataset.defectflowHtml2canvas = "true";
+            script.onload = () => resolve(window.html2canvas);
+            script.onerror = () => reject(new Error("html2canvas-load-failed"));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function waitForCaptureAssets(timeoutMs) {
+        const fontReady = document.fonts && document.fonts.ready
+            ? document.fonts.ready.catch(() => undefined)
+            : Promise.resolve();
+
+        const imagePromises = Array.from(document.images || [])
+            .filter((img) => !img.complete)
+            .map((img) => new Promise((resolve) => {
+                const cleanup = () => {
+                    img.removeEventListener("load", cleanup);
+                    img.removeEventListener("error", cleanup);
+                    resolve();
+                };
+                img.addEventListener("load", cleanup, { once: true });
+                img.addEventListener("error", cleanup, { once: true });
+            }));
+
+        await Promise.race([
+            Promise.all([fontReady, ...imagePromises]),
+            new Promise((resolve) => setTimeout(resolve, timeoutMs || 1500))
+        ]);
+    }
 
     function resizeCanvas(sourceCanvas, ratio) {
         const nextCanvas = document.createElement("canvas");
@@ -68,87 +119,196 @@
         }
     }
 
-    async function captureCurrentTab() {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== "function") {
-            throw new Error("tab-capture-not-supported");
+    function getCaptureScale(width, height) {
+        const baseScale = Math.min(2, Math.max(1.5, window.devicePixelRatio || 1));
+        const maxPixels = 16000000;
+        const estimatedPixels = width * height;
+        const safeScale = Math.sqrt(maxPixels / Math.max(estimatedPixels, 1));
+        return Math.max(1, Math.min(baseScale, safeScale));
+    }
+
+    function rewriteAssetUrl(rawUrl) {
+        if (!rawUrl || rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) {
+            return rawUrl;
         }
 
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const idealWidth = Math.max(1280, Math.round((window.innerWidth || 1280) * dpr));
-        const idealHeight = Math.max(720, Math.round((window.innerHeight || 720) * dpr));
-        let stream = null;
+        try {
+            const url = new URL(rawUrl, window.location.href);
+
+            if (!/^https?:$/.test(url.protocol)) {
+                return rawUrl;
+            }
+
+            if (url.origin === window.location.origin) {
+                return url.href;
+            }
+
+            if (!SAME_ORIGIN_REWRITE_HOSTS.has(url.hostname)) {
+                return rawUrl;
+            }
+
+            return `${window.location.origin}${url.pathname}${url.search}${url.hash}`;
+        } catch (err) {
+            return rawUrl;
+        }
+    }
+
+    function rewriteSrcsetValue(srcsetValue) {
+        if (!srcsetValue) {
+            return srcsetValue;
+        }
+
+        return srcsetValue
+            .split(",")
+            .map((entry) => {
+                const trimmed = entry.trim();
+                if (!trimmed) {
+                    return trimmed;
+                }
+
+                const parts = trimmed.split(/\s+/);
+                const url = parts.shift();
+                const rewrittenUrl = rewriteAssetUrl(url);
+                return [rewrittenUrl, ...parts].join(" ").trim();
+            })
+            .join(", ");
+    }
+
+    function rewriteBackgroundImageValue(backgroundValue) {
+        if (!backgroundValue || backgroundValue === "none") {
+            return backgroundValue;
+        }
+
+        return backgroundValue.replace(/url\((['"]?)(.*?)\1\)/g, (match, quote, rawUrl) => {
+            const rewrittenUrl = rewriteAssetUrl(rawUrl);
+            if (!rewrittenUrl || rewrittenUrl === rawUrl) {
+                return match;
+            }
+            return `url("${rewrittenUrl}")`;
+        });
+    }
+
+    function setOrRemoveAttribute(element, name, value) {
+        if (value === null || typeof value === "undefined") {
+            element.removeAttribute(name);
+            return;
+        }
+
+        element.setAttribute(name, value);
+    }
+
+    async function prepareAssetsForCapture() {
+        const restorers = [];
+        const imageLoadPromises = [];
+
+        for (const img of Array.from(document.images || [])) {
+            const originalSrc = img.getAttribute("src");
+            const originalSrcset = img.getAttribute("srcset");
+            const originalCrossorigin = img.getAttribute("crossorigin");
+            const rewrittenSrc = rewriteAssetUrl(originalSrc || img.currentSrc || img.src || "");
+            const rewrittenSrcset = rewriteSrcsetValue(originalSrcset || "");
+            const shouldRewriteSrc = Boolean(rewrittenSrc && rewrittenSrc !== (originalSrc || ""));
+            const shouldRewriteSrcset = Boolean(originalSrcset && rewrittenSrcset !== originalSrcset);
+
+            if (!shouldRewriteSrc && !shouldRewriteSrcset) {
+                continue;
+            }
+
+            restorers.push(() => {
+                setOrRemoveAttribute(img, "src", originalSrc);
+                setOrRemoveAttribute(img, "srcset", originalSrcset);
+                setOrRemoveAttribute(img, "crossorigin", originalCrossorigin);
+            });
+
+            if (shouldRewriteSrc) {
+                img.src = rewrittenSrc;
+            }
+
+            if (shouldRewriteSrcset) {
+                img.setAttribute("srcset", rewrittenSrcset);
+            }
+
+            img.removeAttribute("crossorigin");
+
+            imageLoadPromises.push(new Promise((resolve) => {
+                if (img.complete && img.naturalWidth > 0) {
+                    resolve();
+                    return;
+                }
+
+                const cleanup = () => {
+                    img.removeEventListener("load", cleanup);
+                    img.removeEventListener("error", cleanup);
+                    resolve();
+                };
+
+                img.addEventListener("load", cleanup, { once: true });
+                img.addEventListener("error", cleanup, { once: true });
+            }));
+        }
+
+        for (const element of Array.from(document.querySelectorAll("*"))) {
+            const computedBackgroundImage = getComputedStyle(element).backgroundImage;
+            const rewrittenBackgroundImage = rewriteBackgroundImageValue(computedBackgroundImage);
+
+            if (!rewrittenBackgroundImage || rewrittenBackgroundImage === computedBackgroundImage) {
+                continue;
+            }
+
+            const originalInlineBackgroundImage = element.style.backgroundImage;
+            restorers.push(() => {
+                element.style.backgroundImage = originalInlineBackgroundImage;
+            });
+            element.style.backgroundImage = rewrittenBackgroundImage;
+        }
+
+        await Promise.race([
+            Promise.all(imageLoadPromises),
+            new Promise((resolve) => setTimeout(resolve, 2500))
+        ]);
+
+        return () => {
+            for (let index = restorers.length - 1; index >= 0; index -= 1) {
+                restorers[index]();
+            }
+        };
+    }
+
+    async function captureCurrentScreen() {
+        const html2canvas = await loadHtml2Canvas();
+        await waitForCaptureAssets(1500);
+
+        const restoreAssets = await prepareAssetsForCapture();
 
         try {
-            stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    displaySurface: "browser",
-                    preferCurrentTab: true,
-                    selfBrowserSurface: "include",
-                    surfaceSwitching: "exclude",
-                    width: { ideal: idealWidth },
-                    height: { ideal: idealHeight },
-                    frameRate: { ideal: 2, max: 5 }
-                },
-                audio: false
+            await waitForCaptureAssets(1200);
+
+            const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
+            const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
+            const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+            const height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+            const scale = getCaptureScale(width, height);
+
+            const canvas = await html2canvas(document.documentElement, {
+                logging: false,
+                useCORS: true,
+                allowTaint: false,
+                scale: scale,
+                backgroundColor: "#ffffff",
+                imageTimeout: 15000,
+                width: width,
+                height: height,
+                x: captureX,
+                y: captureY,
+                scrollX: captureX,
+                scrollY: captureY,
+                windowWidth: width,
+                windowHeight: height
             });
 
-            const track = stream.getVideoTracks()[0];
-            if (!track) {
-                throw new Error("tab-capture-no-track");
-            }
-
-            const settings = typeof track.getSettings === "function" ? track.getSettings() : {};
-            if (settings.displaySurface && settings.displaySurface !== "browser") {
-                throw new Error("tab-capture-not-browser-surface");
-            }
-
-            const video = document.createElement("video");
-            video.muted = true;
-            video.playsInline = true;
-            video.srcObject = stream;
-
-            await new Promise((resolve, reject) => {
-                video.onloadedmetadata = () => resolve();
-                video.onerror = () => reject(new Error("tab-capture-video-error"));
-            });
-
-            const playPromise = video.play();
-            if (playPromise && typeof playPromise.then === "function") {
-                await playPromise.catch(() => undefined);
-            }
-
-            await new Promise((resolve) => setTimeout(resolve, 250));
-
-            if (typeof video.requestVideoFrameCallback === "function") {
-                await new Promise((resolve) => {
-                    video.requestVideoFrameCallback(() => resolve());
-                });
-            }
-
-            const width = Math.max(video.videoWidth || 0, settings.width || 0, window.innerWidth || 1280);
-            const height = Math.max(video.videoHeight || 0, settings.height || 0, window.innerHeight || 720);
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d");
-
-            canvas.width = width;
-            canvas.height = height;
-
-            if (!context) {
-                throw new Error("tab-capture-no-context");
-            }
-
-            context.drawImage(video, 0, 0, width, height);
-
-            const dataUrl = buildCaptureDataUrl(canvas);
-            if (!dataUrl) {
-                throw new Error("tab-capture-empty");
-            }
-
-            return dataUrl;
+            return buildCaptureDataUrl(canvas);
         } finally {
-            if (stream) {
-                stream.getTracks().forEach((track) => track.stop());
-            }
+            restoreAssets();
         }
     }
 
@@ -267,24 +427,8 @@
         };
     }
 
-    function resolveCaptureErrorMessage(err) {
-        if (!err || !err.message) {
-            return "탭 캡처 중 오류가 발생했습니다.";
-        }
-
-        if (err.message === "tab-capture-not-supported") {
-            return "이 브라우저는 탭 캡처를 지원하지 않습니다. Chrome 또는 Edge에서 다시 시도해 주세요.";
-        }
-
-        if (err.message === "tab-capture-not-browser-surface") {
-            return "공유 화면 선택 창에서 현재 탭을 선택해 주세요.";
-        }
-
-        if (err.name === "NotAllowedError" || err.name === "AbortError") {
-            return "탭 캡처가 취소되었습니다.";
-        }
-
-        return "탭 캡처 중 오류가 발생했습니다.";
+    function resolveCaptureErrorMessage() {
+        return "화면 캡처 중 오류가 발생했습니다.";
     }
 
     async function handleReportClick(btn) {
@@ -311,7 +455,7 @@
                 return;
             }
 
-            const screenshot = await captureCurrentTab();
+            const screenshot = await captureCurrentScreen();
             const defectData = buildDefectData(screenshot);
 
             if (!defectData.screenshot) {
@@ -333,7 +477,7 @@
             window.addEventListener("message", messageHandler);
             popup.location.href = `${DEFECTFLOW_URL}?mode=standalone#register`;
         } catch (err) {
-            console.error("[DefectFlow] Tab capture failed:", err);
+            console.error("[DefectFlow] Capture failed:", err);
             if (popup && !popup.closed) {
                 popup.close();
             }
