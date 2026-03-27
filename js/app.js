@@ -249,6 +249,29 @@ window.App = {
         return defaults;
     },
 
+    getActiveUserOptions(selectedValue = '') {
+        const selected = String(selectedValue || '').trim();
+        const users = (this.state.users || [])
+            .filter(user => this.isUserActive(user.status))
+            .map(user => ({
+                name: user.name || '',
+                department: user.department || ''
+            }))
+            .filter(user => user.name);
+
+        if (selected && !users.some(user => user.name === selected)) {
+            return [
+                ...users,
+                {
+                    name: selected,
+                    department: ''
+                }
+            ];
+        }
+
+        return users;
+    },
+
     isUserActive(status) {
         return status === '사용';
     },
@@ -2547,6 +2570,7 @@ window.App = {
         this.state.transientScreenshotData = '';
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
         const mobileScreenOptions = this.getMobileScreenPathOptions(selectedScreenPath);
+        const creatorOptions = this.getActiveUserOptions(item.creator || currentUserName);
         const envInfo = item.env_info || `Mobile Quick Entry | UA: ${navigator.userAgent}`;
 
         container.innerHTML = `
@@ -2606,7 +2630,12 @@ window.App = {
 
                     <div class="form-group">
                         <label>등록자 (필수)</label>
-                        <input type="text" name="creator" value="${this.sanitize(item.creator || '')}" required placeholder="등록자명을 입력하세요">
+                        <select name="creator" required>
+                            <option value="">선택하세요</option>
+                            ${creatorOptions.map(user => `
+                                <option value="${this.sanitize(user.name)}" ${(item.creator || currentUserName || '') === user.name ? 'selected' : ''}>${this.sanitize(user.name)}${user.department ? ` (${this.sanitize(user.department)})` : ''}</option>
+                            `).join('')}
+                        </select>
                     </div>
 
                     <input type="hidden" name="screenshot" value="">

@@ -62,7 +62,7 @@
   function buildDefectSeed(config) {
     const parsed = parseScreenPath(config.defaultScreenPath);
     return {
-      title: config.defaultTitle || `[모바일] ${document.title || '결함 등록'}`,
+      title: config.defaultTitle || '',
       steps_to_repro: '',
       menu_name: parsed.menu_name,
       screen_name: parsed.screen_name,
