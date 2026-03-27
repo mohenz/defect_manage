@@ -405,25 +405,6 @@ body.standalone-mode nav {
 
 body.standalone-mode main {
     padding-left: 0;
-    display: none;
-    /* Hide background content */
-}
-
-body.standalone-mode .modal-overlay {
-    background: white;
-    /* No blur/dim needed since it's the only thing */
-    opacity: 1;
-    visibility: visible;
-}
-
-body.standalone-mode .modal-content {
-    transform: translateY(0);
-    box-shadow: none;
-    width: 100%;
-    height: 100%;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
 }
 
 body.standalone-mode .modal-controls .fas-expand-alt {
