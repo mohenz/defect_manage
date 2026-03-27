@@ -2226,17 +2226,17 @@ window.App = {
                                 <option value="${this.sanitize(code.code_value)}" ${selectedScreenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
                             `).join('')}
                         </select>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 공통코드의 화면 목록에서 선택하면 메뉴명과 화면명이 자동으로 매핑됩니다.</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 공통코드의 화면 목록에서 선택하면 메뉴명과 화면명이 자동으로 매핑됩니다.${id ? '' : ' 자동 입력 후 직접 수정도 가능합니다.'}</p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
                             <label>메뉴명</label>
-                            <input type="text" id="menuNamePreview" value="${this.sanitize(parsedScreenPath.menuName || item.menu_name || '')}" placeholder="선택한 화면 기준으로 자동 입력" readonly>
+                            <input type="text" id="menuNamePreview" name="menu_name" value="${this.sanitize(parsedScreenPath.menuName || item.menu_name || '')}" placeholder="${id ? '선택한 화면 기준으로 자동 입력' : '직접 입력하거나 화면 선택 후 자동 입력'}" ${id ? 'readonly' : ''}>
                         </div>
                         <div class="form-group">
                             <label>화면명</label>
-                            <input type="text" id="screenNamePreview" value="${this.sanitize(parsedScreenPath.screenName || item.screen_name || '')}" placeholder="선택한 화면 기준으로 자동 입력" readonly>
+                            <input type="text" id="screenNamePreview" name="screen_name" value="${this.sanitize(parsedScreenPath.screenName || item.screen_name || '')}" placeholder="${id ? '선택한 화면 기준으로 자동 입력' : '직접 입력하거나 화면 선택 후 자동 입력'}" ${id ? 'readonly' : ''}>
                         </div>
                     </div>
 
@@ -2816,6 +2816,8 @@ window.App = {
         };
 
         const parsedScreenPath = this.parseScreenPath(value('screen_path', fallbackScreenPath));
+        const menuName = value('menu_name', parsedScreenPath.menuName || existing.menu_name || '');
+        const screenName = value('screen_name', parsedScreenPath.screenName || existing.screen_name || '');
 
         return {
             test_type: value('test_type', existing.test_type || '단위테스트'),
@@ -2825,8 +2827,8 @@ window.App = {
             steps_to_repro: value('steps_to_repro', existing.steps_to_repro || ''),
             creator: value('creator', existing.creator || currentUserName || ''),
             assignee: value('assignee', existing.assignee || ''),
-            menu_name: parsedScreenPath.menuName,
-            screen_name: parsedScreenPath.screenName,
+            menu_name: menuName,
+            screen_name: screenName,
             screen_url: value('screen_url', existing.screen_url || ''),
             screenshot: value('screenshot', existing.screenshot || ''),
             status: value('status', existing.status || 'Open'),
