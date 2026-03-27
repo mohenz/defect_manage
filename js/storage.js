@@ -395,7 +395,9 @@ const StorageService = {
                     payload.screenshot = publicUrl;
                     console.log("[Storage] Image uploaded. URL:", publicUrl);
                 } else {
-                    console.warn("[Storage] Image upload failed, falling back to original payload (Base64 might be stored or image lost)");
+                    console.warn("[Storage] Image upload failed. Save aborted to avoid storing Base64 payload.");
+                    alert('이미지 업로드에 실패했습니다. 다시 시도해 주세요.');
+                    return false;
                 }
             }
 

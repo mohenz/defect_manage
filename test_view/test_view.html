@@ -221,22 +221,72 @@
             return Math.max(1, Math.min(baseScale, safeScale));
         }
 
+        function resizeCanvas(sourceCanvas, ratio) {
+            const nextCanvas = document.createElement('canvas');
+            const width = Math.max(1, Math.round(sourceCanvas.width * ratio));
+            const height = Math.max(1, Math.round(sourceCanvas.height * ratio));
+            const context = nextCanvas.getContext('2d');
+
+            nextCanvas.width = width;
+            nextCanvas.height = height;
+
+            if (!context) {
+                return sourceCanvas;
+            }
+
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, width, height);
+            context.drawImage(sourceCanvas, 0, 0, width, height);
+            return nextCanvas;
+        }
+
         function buildCaptureDataUrl(canvas) {
             const preferredFormats = [
-                { mime: 'image/webp', quality: 0.95 },
-                { mime: 'image/jpeg', quality: 0.92 },
-                { mime: 'image/jpeg', quality: 0.88 }
+                { mime: 'image/webp', qualities: [0.95, 0.88, 0.8, 0.72] },
+                { mime: 'image/jpeg', qualities: [0.92, 0.86, 0.8, 0.72] }
             ];
             const maxLength = 1800000;
 
-            for (const format of preferredFormats) {
-                const dataUrl = canvas.toDataURL(format.mime, format.quality);
-                if (dataUrl && dataUrl !== 'data:,' && dataUrl.length <= maxLength) {
-                    return dataUrl;
+            let workingCanvas = canvas;
+            let smallestDataUrl = '';
+
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+                for (const format of preferredFormats) {
+                    for (const quality of format.qualities) {
+                        const dataUrl = workingCanvas.toDataURL(format.mime, quality);
+                        if (!dataUrl || dataUrl === 'data:,') {
+                            continue;
+                        }
+
+                        if (!smallestDataUrl || dataUrl.length < smallestDataUrl.length) {
+                            smallestDataUrl = dataUrl;
+                        }
+
+                        if (dataUrl.length <= maxLength) {
+                            return dataUrl;
+                        }
+                    }
                 }
+
+                if (Math.max(workingCanvas.width, workingCanvas.height) <= 800) {
+                    break;
+                }
+
+                workingCanvas = resizeCanvas(workingCanvas, 0.82);
             }
 
-            return canvas.toDataURL('image/jpeg', 0.82);
+            return smallestDataUrl;
+        }
+
+        function persistPendingDefectData(defectData) {
+            try {
+                localStorage.setItem('pending_defect', JSON.stringify(defectData));
+                console.log("[TestBench] pending_defect saved to localStorage.");
+                return true;
+            } catch (err) {
+                console.warn("[TestBench] localStorage save skipped:", err);
+                return false;
+            }
         }
 
         async function captureCurrentScreen() {
@@ -433,9 +483,12 @@
                     test_type: '통합테스트'
                 };
 
+                if (!defectData.screenshot) {
+                    defectData.env_info += ' | Screenshot omitted or unavailable';
+                }
+
                 // 1. Same-Domain (LocalStorage)
-                console.log("[TestBench] Saving data to localStorage...");
-                localStorage.setItem('pending_defect', JSON.stringify(defectData));
+                persistPendingDefectData(defectData);
 
                 // 2. Cross-Domain Handshake
                 const messageHandler = function(event) {

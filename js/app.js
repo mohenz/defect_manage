@@ -145,6 +145,20 @@ window.App = {
         }
     },
 
+    getCurrentFormScreenshot(fallback = '') {
+        const screenshotInput = document.querySelector('input[name="screenshot"]');
+        return this.state.transientScreenshotData || screenshotInput?.value || fallback || '';
+    },
+
+    viewCurrentPreview(fallback = '') {
+        const source = this.getCurrentFormScreenshot(fallback);
+        if (!source) {
+            alert('표시할 이미지 또는 화면 정보가 없습니다.');
+            return;
+        }
+        this.viewExternal(source);
+    },
+
     getUserStatusOptions(selectedValue = '') {
         const defaults = [
             { code_value: '사용', code_name: '사용' },
@@ -197,6 +211,7 @@ window.App = {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
         pendingDefectData: null, // Stores data received via postMessage for cross-domain support
+        transientScreenshotData: '',
         selectedDefect: null,
         commonCodes: [],
         settingsTab: 'test-types'
@@ -2194,6 +2209,12 @@ window.App = {
             }
         }
 
+        const screenshotSource = item.screenshot || '';
+        const usesTransientScreenshot = screenshotSource.startsWith('data:image');
+        this.state.transientScreenshotData = usesTransientScreenshot ? screenshotSource : '';
+        const persistedScreenshot = usesTransientScreenshot ? '' : screenshotSource;
+        const previewSource = this.state.transientScreenshotData || persistedScreenshot || item.screen_url || '';
+
         const title = id ? '결함 정보 관리' : '신규 결함 등록';
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
         const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
@@ -2310,20 +2331,20 @@ window.App = {
 
                     <!-- Hidden fields for capture data -->
                     <input type="hidden" name="screen_url" value="${this.sanitize(item.screen_url || '')}">
-                    <input type="hidden" name="screenshot" value="${item.screenshot || ''}">
+                    <input type="hidden" name="screenshot" value="${this.sanitize(persistedScreenshot)}">
 
-                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${(item.screenshot || item.screen_url) ? '' : 'display: none;'}">
+                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${previewSource ? '' : 'display: none;'}">
                         <div style="background: var(--bg-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                             <span><i class="fas fa-eye"></i> 이미지 미리보기</span>
                             <a href="javascript:void(0)" 
                                style="color: var(--accent); text-decoration: none;"
-                               onclick="App.viewExternal(document.getElementsByName('screenshot')[0].value || '${this.sanitize(item.screen_url || '')}');">
+                               onclick="App.viewCurrentPreview('${this.sanitize(item.screen_url || '')}');">
                                <i class="fas fa-search-plus"></i> 클릭하여 확대 보기
                             </a>
                         </div>
                         <div id="imagePreviewArea" style="width: 100%; height: 350px; background: #f8fafc; display: flex; align-items: center; justify-content: center;">
-                            ${(item.screenshot || (item.screen_url && item.screen_url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i)))
-                ? `<img src="${item.screenshot || item.screen_url}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`
+                            ${(previewSource && this.isImageSource(previewSource))
+                ? `<img src="${previewSource}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`
                 : (item.screen_url ? `<iframe src="${this.sanitize(item.screen_url)}" style="width: 100%; height: 100%; border: none; background: #fff;"></iframe>` : '')
             }
                         </div>
@@ -2552,6 +2573,7 @@ window.App = {
         }
         this.state.currentModal = null;
         this.state.selectedDefect = null;
+        this.state.transientScreenshotData = '';
         document.getElementById('modalOverlay').classList.remove('active');
         document.getElementById('modalContent').classList.remove('maximize');
         document.getElementById('maximizeBtn').className = 'fas fa-expand-alt modal-control-btn';
@@ -2759,7 +2781,8 @@ window.App = {
             }
 
             const preparedDataUrl = await this.prepareUploadedImage(file);
-            screenshotInput.value = preparedDataUrl;
+            this.state.transientScreenshotData = preparedDataUrl.startsWith('data:image') ? preparedDataUrl : '';
+            screenshotInput.value = this.state.transientScreenshotData ? '' : preparedDataUrl;
             this.updateImagePreview(preparedDataUrl);
 
             if (fileNameDisplay) {
@@ -2818,6 +2841,7 @@ window.App = {
         const parsedScreenPath = this.parseScreenPath(value('screen_path', fallbackScreenPath));
         const menuName = value('menu_name', parsedScreenPath.menuName || existing.menu_name || '');
         const screenName = value('screen_name', parsedScreenPath.screenName || existing.screen_name || '');
+        const transientScreenshot = this.state.transientScreenshotData || '';
 
         return {
             test_type: value('test_type', existing.test_type || '단위테스트'),
@@ -2830,7 +2854,7 @@ window.App = {
             menu_name: menuName,
             screen_name: screenName,
             screen_url: value('screen_url', existing.screen_url || ''),
-            screenshot: value('screenshot', existing.screenshot || ''),
+            screenshot: transientScreenshot || value('screenshot', existing.screenshot || ''),
             status: value('status', existing.status || 'Open'),
             defect_identification: value('defect_identification', existing.defect_identification || ''),
             action_comment: value('action_comment', existing.action_comment || ''),
