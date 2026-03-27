@@ -347,7 +347,7 @@ window.App = {
             this.state.pendingDefectData = event.data.data || null;
             console.log("[App] Received defect data via postMessage. Screenshot status:", !!this.state.pendingDefectData?.screenshot);
 
-            if (this.state.isLoggedIn) {
+            if (this.state.isLoggedIn || this.state.isStandalone) {
                 this.showRegisterModal();
             }
         });
@@ -384,7 +384,9 @@ window.App = {
         // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
         const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
 
-        if (!this.state.isLoggedIn && !isAuthView) {
+        const canAccessStandaloneRegister = this.state.isStandalone && view === 'register';
+
+        if (!this.state.isLoggedIn && !isAuthView && !canAccessStandaloneRegister) {
             this.state.returnTo = view;
             this.state.currentView = 'login';
             console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
@@ -2213,7 +2215,7 @@ window.App = {
         const usesTransientScreenshot = screenshotSource.startsWith('data:image');
         this.state.transientScreenshotData = usesTransientScreenshot ? screenshotSource : '';
         const persistedScreenshot = usesTransientScreenshot ? '' : screenshotSource;
-        const previewSource = this.state.transientScreenshotData || persistedScreenshot || item.screen_url || '';
+        const previewSource = this.state.transientScreenshotData || persistedScreenshot || '';
 
         const title = id ? '결함 정보 관리' : '신규 결함 등록';
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
@@ -2333,7 +2335,7 @@ window.App = {
                     <input type="hidden" name="screen_url" value="${this.sanitize(item.screen_url || '')}">
                     <input type="hidden" name="screenshot" value="${this.sanitize(persistedScreenshot)}">
 
-                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${previewSource ? '' : 'display: none;'}">
+                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${(previewSource || item.screen_url) ? '' : 'display: none;'}">
                         <div style="background: var(--bg-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                             <span><i class="fas fa-eye"></i> 이미지 미리보기</span>
                             <a href="javascript:void(0)" 
@@ -2345,7 +2347,9 @@ window.App = {
                         <div id="imagePreviewArea" style="width: 100%; height: 350px; background: #f8fafc; display: flex; align-items: center; justify-content: center;">
                             ${(previewSource && this.isImageSource(previewSource))
                 ? `<img src="${previewSource}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`
-                : (item.screen_url ? `<iframe src="${this.sanitize(item.screen_url)}" style="width: 100%; height: 100%; border: none; background: #fff;"></iframe>` : '')
+                : ((item.screen_url || screenshotSource)
+                    ? '<div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">캡처 이미지가 없습니다. 상단의 확대 보기로 원본 화면을 확인해 주세요.</div>'
+                    : '')
             }
                         </div>
                     </div>

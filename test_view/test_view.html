@@ -449,9 +449,8 @@
                 return;
             }
 
-            // UI 안정화를 위해 화면 상단으로 이동 후 대기
-            window.scrollTo(0, 0);
-            await new Promise(r => setTimeout(r, 500));
+            // 현재 보고 있는 위치를 유지한 채 캡처가 시작되도록 짧게 대기
+            await new Promise(r => setTimeout(r, 150));
 
             let screenshot = '';
 
