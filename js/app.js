@@ -2568,55 +2568,28 @@ window.App = {
         }
 
         this.state.transientScreenshotData = '';
-        const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
+        const selectedScreenPath = '';
         const mobileScreenOptions = this.getMobileScreenPathOptions(selectedScreenPath);
         const creatorOptions = this.getActiveUserOptions(item.creator || currentUserName);
         const envInfo = item.env_info || `Mobile Quick Entry | UA: ${navigator.userAgent}`;
 
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
-                <h1>모바일 간편 결함 등록</h1>
+                <h1>📱 모바일 간편 결함 등록</h1>
                 <p class="subtitle">모바일웹 환경에서 필요한 최소 정보만 빠르게 등록합니다.</p>
             </div>
 
             <div class="form-container animate-in mobile-quick-form">
                 <form id="defectForm">
                     <div class="form-group">
-                        <label>결함 제목 (필수)</label>
-                        <input type="text" name="title" value="${this.sanitize(item.title || '')}" required placeholder="문제를 한 줄로 입력하세요">
+                        <label>📝 결함 제목 (필수)</label>
+                        <input type="text" name="title" value="${this.sanitize(item.title || '')}" required placeholder="결함 제목 입력">
                     </div>
 
                     <div class="form-group">
-                        <label>결함 내용 또는 재현 절차 (필수)</label>
-                        <textarea name="steps_to_repro" rows="5" required placeholder="어떤 화면에서 무엇을 했을 때 어떤 문제가 발생했는지 입력하세요">${this.sanitize(item.steps_to_repro || '')}</textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>테스트 구분 (필수)</label>
-                        <select name="test_type" required>
-                            ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" ${item.test_type === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
-                        </select>
-                    </div>
-
-                    <div class="mobile-quick-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>심각도 (필수)</label>
-                            <select name="severity" required>
-                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" ${item.severity === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>우선순위 (필수)</label>
-                            <select name="priority" required>
-                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" ${item.priority === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>결함 발생 화면 (필수)</label>
+                        <label>📍 결함 발생 화면 (필수)</label>
                         <select name="screen_path" required>
-                            <option value="">선택하세요</option>
+                            <option value="" selected>선택하세요</option>
                             ${mobileScreenOptions.map(code => `
                                 <option value="${this.sanitize(code.code_value)}" ${selectedScreenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
                             `).join('')}
@@ -2624,12 +2597,34 @@ window.App = {
                     </div>
 
                     <div class="form-group">
-                        <label>현재 페이지 URL 또는 화면 URL (필수)</label>
-                        <input type="text" name="screen_url" value="${this.sanitize(item.screen_url || '')}" required placeholder="모바일웹 화면 URL을 입력하세요">
+                        <label>📄 결함 내용 또는 재현 절차 (필수)</label>
+                        <textarea name="steps_to_repro" rows="5" required placeholder="결함내용을 입력하세요">${this.sanitize(item.steps_to_repro || '')}</textarea>
                     </div>
 
                     <div class="form-group">
-                        <label>등록자 (필수)</label>
+                        <label>🧪 테스트 구분 (필수)</label>
+                        <select name="test_type" required>
+                            ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" ${item.test_type === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div class="mobile-quick-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>🚨 심각도 (필수)</label>
+                            <select name="severity" required>
+                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" ${item.severity === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>🎯 우선순위 (필수)</label>
+                            <select name="priority" required>
+                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" ${item.priority === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>👤 등록자 (필수)</label>
                         <select name="creator" required>
                             <option value="">선택하세요</option>
                             ${creatorOptions.map(user => `
@@ -2639,6 +2634,7 @@ window.App = {
                     </div>
 
                     <input type="hidden" name="screenshot" value="">
+                    <input type="hidden" name="screen_url" value="${this.sanitize(item.screen_url || '')}">
                     <input type="hidden" name="status" value="${this.sanitize(item.status || 'Open')}">
                     <input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">
                     <input type="hidden" name="defect_identification" value="${this.sanitize(item.defect_identification || '')}">
@@ -2649,7 +2645,7 @@ window.App = {
 
                     <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
                         <button type="button" class="btn" style="background: rgba(255,255,255,0.05)" onclick="App.closeModal()">취소</button>
-                        <button type="submit" class="btn btn-primary">결함 등록</button>
+                        <button type="submit" class="btn btn-primary">✅ 결함 등록</button>
                     </div>
                 </form>
             </div>
