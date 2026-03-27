@@ -456,8 +456,13 @@ window.App = {
             this.state.pendingDefectData = event.data.data || null;
             console.log("[App] Received defect data via postMessage. Screenshot status:", !!this.state.pendingDefectData?.screenshot);
 
-            if (this.state.isLoggedIn || this.state.isStandalone) {
+            if (this.state.isLoggedIn) {
                 this.showRegisterModal();
+            } else {
+                this.state.returnTo = 'register';
+                if (this.state.currentView !== 'login') {
+                    this.navigate('login');
+                }
             }
         });
 
@@ -490,12 +495,9 @@ window.App = {
         const previousView = this.state.currentView;
 
         // Authentication Guard
-        // Standalone 모드의 결함 등록(#register)은 로그인 없이 허용
         const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
 
-        const canAccessStandaloneRegister = this.state.isStandalone && view === 'register';
-
-        if (!this.state.isLoggedIn && !isAuthView && !canAccessStandaloneRegister) {
+        if (!this.state.isLoggedIn && !isAuthView) {
             this.state.returnTo = view;
             this.state.currentView = 'login';
             console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
@@ -2274,7 +2276,7 @@ window.App = {
     renderForm(container, id = null, itemOverride = null) {
         const isAdmin = this.getEffectiveRole() === '관리자';
         const isNewDefect = !id;
-        const canEditCreator = isNewDefect || isAdmin;
+        const currentUserName = this.state.currentUser?.name || '';
         const canAssign = isNewDefect || this.canEditAssignee();
         let item = itemOverride || (id ? this.getSelectedDefect(id) : {}) || {};
 
@@ -2282,6 +2284,7 @@ window.App = {
             item = {
                 severity: 'Minor',
                 priority: 'Medium',
+                creator: currentUserName,
                 ...item
             };
         }
@@ -2317,8 +2320,7 @@ window.App = {
                     screenshot: data.screenshot,
                     env_info: data.env_info,
                     test_type: data.test_type,
-                    steps_to_repro: data.steps_to_repro,
-                    creator: data.creator
+                    steps_to_repro: data.steps_to_repro
                 };
                 console.log("[App] Pending defect data consumed. Screenshot status:", !!data.screenshot);
             }
@@ -2334,6 +2336,7 @@ window.App = {
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
         const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
         const showMobileQuickLauncher = isNewDefect && !this.state.isMobileQuickMode;
+        const resolvedCreator = id ? (item.creator || currentUserName) : currentUserName;
 
         container.innerHTML = `
             <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
@@ -2408,14 +2411,9 @@ window.App = {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
-                            <label>등록자 (테스터) (필수) ${canEditCreator ? '<i class="fas fa-crown" style="color:#fbbf24; font-size:0.8rem;"></i>' : ''}</label>
-                            <select name="creator" required ${canEditCreator ? '' : 'disabled'}>
-                                <option value="">선택하세요</option>
-                                ${this.state.users.filter(u => this.isUserActive(u.status)).map(u => `
-                                    <option value="${this.sanitize(u.name)}" ${(item.creator || (this.state.currentUser ? this.state.currentUser.name : '')) === u.name ? 'selected' : ''}>${this.sanitize(u.name)} (${u.department})</option>
-                                `).join('')}
-                            </select>
-                            ${!canEditCreator ? `<input type="hidden" name="creator" value="${this.sanitize(item.creator || (this.state.currentUser ? this.state.currentUser.name : ''))}">` : ''}
+                            <label>등록자 (로그인 사용자)</label>
+                            <input type="text" value="${this.sanitize(resolvedCreator)}" readonly>
+                            <input type="hidden" name="creator" value="${this.sanitize(resolvedCreator)}">
                         </div>
                         <div class="form-group">
                             <label>담당자 (조치자) ${canAssign ? '<i class="fas fa-edit" style="color:var(--accent); font-size:0.8rem;"></i>' : ''}</label>
@@ -2562,15 +2560,13 @@ window.App = {
                 screen_name: data.screen_name,
                 screen_url: data.screen_url,
                 test_type: data.test_type,
-                steps_to_repro: data.steps_to_repro,
-                creator: data.creator
+                steps_to_repro: data.steps_to_repro
             };
         }
 
         this.state.transientScreenshotData = '';
         const selectedScreenPath = '';
         const mobileScreenOptions = this.getMobileScreenPathOptions(selectedScreenPath);
-        const creatorOptions = this.getActiveUserOptions(item.creator || currentUserName);
         const envInfo = item.env_info || `Mobile Quick Entry | UA: ${navigator.userAgent}`;
 
         container.innerHTML = `
@@ -2624,13 +2620,9 @@ window.App = {
                     </div>
 
                     <div class="form-group">
-                        <label>👤 등록자 (필수)</label>
-                        <select name="creator" required>
-                            <option value="">선택하세요</option>
-                            ${creatorOptions.map(user => `
-                                <option value="${this.sanitize(user.name)}" ${(item.creator || currentUserName || '') === user.name ? 'selected' : ''}>${this.sanitize(user.name)}${user.department ? ` (${this.sanitize(user.department)})` : ''}</option>
-                            `).join('')}
-                        </select>
+                        <label>👤 등록자 (로그인 사용자)</label>
+                        <input type="text" value="${this.sanitize(currentUserName)}" readonly>
+                        <input type="hidden" name="creator" value="${this.sanitize(currentUserName)}">
                     </div>
 
                     <input type="hidden" name="screenshot" value="">
@@ -3115,6 +3107,9 @@ window.App = {
         const menuName = value('menu_name', parsedScreenPath.menuName || existing.menu_name || '');
         const screenName = value('screen_name', parsedScreenPath.screenName || existing.screen_name || '');
         const transientScreenshot = this.state.transientScreenshotData || '';
+        const creatorValue = id
+            ? value('creator', existing.creator || currentUserName || '')
+            : (currentUserName || value('creator', existing.creator || ''));
 
         return {
             test_type: value('test_type', existing.test_type || '단위테스트'),
@@ -3122,7 +3117,7 @@ window.App = {
             severity: value('severity', existing.severity || 'Minor'),
             priority: value('priority', existing.priority || 'Medium'),
             steps_to_repro: value('steps_to_repro', existing.steps_to_repro || ''),
-            creator: value('creator', existing.creator || currentUserName || ''),
+            creator: creatorValue,
             assignee: value('assignee', existing.assignee || ''),
             menu_name: menuName,
             screen_name: screenName,
