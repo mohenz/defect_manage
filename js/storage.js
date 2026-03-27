@@ -4,7 +4,7 @@
 
 console.log("[Storage] Initializing Supabase Client with URL:", CONFIG.SUPABASE_URL);
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, test_type, creator, assignee';
+const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, defect_identification, test_type, creator, assignee';
 const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end';
 
 function normalizeScreenPathValue(screenPath = '') {
@@ -234,7 +234,11 @@ const StorageService = {
         if (Array.isArray(filters.enabledTestTypes) && filters.enabledTestTypes.length > 0) {
             query = query.in('test_type', filters.enabledTestTypes);
         }
-        if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.identificationUnassigned) {
+            query = query.or('defect_identification.is.null,defect_identification.eq.');
+        } else if (filters.identification) {
+            query = query.eq('defect_identification', filters.identification);
+        }
         if (filters.screenPath) {
             const parsedScreenPath = parseScreenPathFilter(filters.screenPath);
             if (parsedScreenPath.menuName) query = query.eq('menu_name', parsedScreenPath.menuName);
@@ -276,7 +280,11 @@ const StorageService = {
         if (Array.isArray(filters.enabledTestTypes) && filters.enabledTestTypes.length > 0) {
             query = query.in('test_type', filters.enabledTestTypes);
         }
-        if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.identificationUnassigned) {
+            query = query.or('defect_identification.is.null,defect_identification.eq.');
+        } else if (filters.identification) {
+            query = query.eq('defect_identification', filters.identification);
+        }
         if (filters.screenPath) {
             const parsedScreenPath = parseScreenPathFilter(filters.screenPath);
             if (parsedScreenPath.menuName) query = query.eq('menu_name', parsedScreenPath.menuName);

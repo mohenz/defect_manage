@@ -185,6 +185,7 @@ window.App = {
                 creator: '',
                 assignee: '',
                 assigneeUnassigned: false,
+                identificationUnassigned: false,
                 testType: '',
                 dateStart: '',
                 dateEnd: '',
@@ -1166,6 +1167,7 @@ window.App = {
             creator: '',
             assignee: assigneeName,
             assigneeUnassigned: false,
+            identificationUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -1185,6 +1187,7 @@ window.App = {
             creator: '',
             assignee: assigneeName,
             assigneeUnassigned: false,
+            identificationUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -1204,6 +1207,47 @@ window.App = {
             creator: '',
             assignee: '',
             assigneeUnassigned: true,
+            identificationUnassigned: false,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: '',
+            screenPath: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
+    },
+
+    viewIdentificationDefects(identification) {
+        this.state.listConfig.search = {
+            severity: '',
+            status: '',
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: '',
+            assigneeUnassigned: false,
+            identificationUnassigned: false,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: identification || '',
+            screenPath: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
+    },
+
+    viewIdentificationUnassignedDefects() {
+        this.state.listConfig.search = {
+            severity: '',
+            status: '',
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: '',
+            assigneeUnassigned: false,
+            identificationUnassigned: true,
             testType: '',
             dateStart: '',
             dateEnd: '',
@@ -1446,6 +1490,18 @@ window.App = {
         });
         const sortedStatusTypes = Object.entries(statusStats).sort((a, b) => b[1].total - a[1].total);
 
+        // 4. 결함식별 통계 계산
+        const identificationStats = { total: defects.length, unassigned: 0 };
+        this.getCodesByGroup('IDENTIFICATION').forEach(c => identificationStats[c.code_value] = 0);
+
+        defects.forEach(d => {
+            if (identificationStats[d.defect_identification] !== undefined) {
+                identificationStats[d.defect_identification] += 1;
+            } else {
+                identificationStats.unassigned += 1;
+            }
+        });
+
         // 비중(%) 계산 헬퍼
         
 
@@ -1582,32 +1638,37 @@ window.App = {
                 </div>
             </div>
 
-            <div class="form-container animate-in" style="max-width: 100%;">
-                <h2 style="margin-bottom: 1.5rem;">최근 등록된 결함</h2>
+            <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-tags"></i> 결함식별 통계</h2>
                 <div class="data-table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>결함명</th>
-                                <th>심각도</th>
-                                <th>상태</th>
-                                <th>등록자</th>
-                                <th>등록일</th>
+                                <th>구분</th>
+                                <th style="text-align: center;">전체 건수</th>
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `
+                                    <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name}</th>
+                                `).join('')}
+                                <th style="text-align: center;">미입력</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${defects
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 10)
-                .map(d => `
-                                <tr>
-                                    <td><strong class="clickable-link" onclick="App.editDefect(${d.defect_id})">[${this.getCodeName('TEST_TYPE', d.test_type).substring(0, 2)}] ${this.sanitize(d.title)}</strong></td>
-                                    <td><span class="badge" style="background-color: ${this.getCodeColor('SEVERITY', d.severity) || '#64748b'}; color: white;">${this.getCodeName('SEVERITY', d.severity)}</span></td>
-                                    <td><span class="badge" style="background-color: ${this.getCodeColor('STATUS', d.status) || '#64748b'}; color: white;">${this.getCodeName('STATUS', d.status)}</span></td>
-                                    <td>${this.sanitize(d.creator)}</td>
-                                    <td>${this.formatDateKST(d.created_at)}</td>
-                                </tr>
-                            `).join('') || '<tr><td colspan="5" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                            <tr>
+                                <td><strong>전체</strong></td>
+                                <td style="text-align: center;"><strong>${identificationStats.total}</strong></td>
+                                ${this.getCodesByGroup('IDENTIFICATION').map(c => `
+                                    <td style="text-align: center;">
+                                        ${identificationStats[c.code_value] > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewIdentificationDefects(${JSON.stringify(c.code_value)})'><strong>${identificationStats[c.code_value]}</strong></button>${identificationStats.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(identificationStats[c.code_value], identificationStats.total)}%)</span>` : ''}`
+                : '0'}
+                                    </td>
+                                `).join('')}
+                                <td style="text-align: center;">
+                                    ${identificationStats.unassigned > 0
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(100, 116, 139, 0.08); color: var(--text-secondary); border: 1px solid rgba(100, 116, 139, 0.2); justify-content:center;" onclick="App.viewIdentificationUnassignedDefects()"><strong>${identificationStats.unassigned}</strong></button>${identificationStats.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(identificationStats.unassigned, identificationStats.total)}%)</span>` : ''}`
+                : '0'}
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -1834,6 +1895,7 @@ window.App = {
                         <label style="font-size: 0.75rem;">결함식별</label>
                         <select id="searchIdentification">
                             <option value="">전체</option>
+                            <option value="__UNASSIGNED__" ${search.identificationUnassigned ? 'selected' : ''}>미입력</option>
                             ${this.getCodesByGroup('IDENTIFICATION').map(c => `
                                 <option value="${c.code_value}" ${search.identification === c.code_value ? 'selected' : ''}>${c.code_name}</option>
                             `).join('')}
@@ -1960,10 +2022,12 @@ window.App = {
 
     // 조회 버튼 클릭 또는 텍스트 입력 Enter 시 실행
     handleSearch() {
+        const selectedIdentification = document.getElementById('searchIdentification').value;
         this.state.listConfig.search = {
             severity: document.getElementById('searchSeverity').value,
             status: document.getElementById('searchStatus').value,
-            identification: document.getElementById('searchIdentification').value,
+            identification: selectedIdentification === '__UNASSIGNED__' ? '' : selectedIdentification,
+            identificationUnassigned: selectedIdentification === '__UNASSIGNED__',
             screenPath: document.getElementById('searchScreenPath').value,
             title: document.getElementById('searchTitle').value,
             stepsToRepro: document.getElementById('searchStepsToRepro').value,
@@ -1986,6 +2050,7 @@ window.App = {
             creator: '',
             assignee: '',
             assigneeUnassigned: false,
+            identificationUnassigned: false,
             testType: '',
             dateStart: '',
             dateEnd: '',
