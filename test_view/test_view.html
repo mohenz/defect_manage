@@ -48,12 +48,25 @@
 
         .product-img {
             height: 200px;
-            background: #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            color: #94a3b8;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .product-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .product-img::after {
+            content: '';
+            position: absolute;
+            inset: auto 0 0 0;
+            height: 45%;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.22), transparent);
+            pointer-events: none;
         }
 
         .product-info {
@@ -229,31 +242,29 @@
         async function captureCurrentScreen() {
             await waitForCaptureAssets();
 
-            const width = Math.max(
-                document.documentElement.scrollWidth,
-                document.body.scrollWidth,
-                window.innerWidth
-            );
-            const height = Math.max(
-                document.documentElement.scrollHeight,
-                document.body.scrollHeight,
-                window.innerHeight
-            );
+            const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
+            const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
+            const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+            const height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
             const scale = getCaptureScale(width, height);
 
-            console.log("[TestBench] Capture config:", { width, height, scale });
+            console.log("[TestBench] Capture config:", { width, height, scale, captureX, captureY });
 
-            const canvas = await html2canvas(document.body, {
+            const canvas = await html2canvas(document.documentElement, {
                 logging: false,
                 useCORS: true,
                 allowTaint: false,
                 scale: scale,
                 backgroundColor: '#ffffff',
                 imageTimeout: 15000,
+                width: width,
+                height: height,
+                x: captureX,
+                y: captureY,
+                scrollX: captureX,
+                scrollY: captureY,
                 windowWidth: width,
-                windowHeight: height,
-                scrollX: 0,
-                scrollY: -window.scrollY
+                windowHeight: height
             });
 
             return buildCaptureDataUrl(canvas);
@@ -262,10 +273,13 @@
         function createProductCard(product) {
             const descClass = product.descriptionClass ? ` class="${product.descriptionClass}"` : '';
             const buttonClass = product.buttonClass ? ` ${product.buttonClass}` : '';
+            const imageSrc = product.imageSrc || './assets/products/apple.webp';
 
             return `
                 <div class="product-card">
-                    <div class="product-img">${product.emoji}</div>
+                    <div class="product-img">
+                        <img src="${imageSrc}" alt="${product.title}" loading="eager" decoding="sync">
+                    </div>
                     <div class="product-info">
                         <h3>${product.title}</h3>
                         <p${descClass} style="${product.descriptionClass ? '' : 'color: #64748b; margin: 0.5rem 0;'}">${product.description}</p>
@@ -276,51 +290,68 @@
             `;
         }
 
+        function buildProductImagePath(fileName) {
+            return `./assets/products/${fileName}`;
+        }
+
         function buildTestProducts(totalCount = 100) {
             const products = [
                 {
-                    emoji: '🍎',
+                    imageSrc: buildProductImagePath('red-apple-fruits.jpg'),
                     title: '유기농 사과 세트',
                     description: '신선한 경북 사과 10kg',
                     priceHtml: '55,000원',
                     buttonLabel: '장바구니 담기'
                 },
                 {
-                    emoji: '🍱',
-                    title: '프리미엄 도시락 세트 (가정용/피크닉용/단체주문환영)',
+                    imageSrc: buildProductImagePath('assorted-breads.jpg'),
+                    title: '프리미엄 베이커리 세트 (가정용/피크닉용/단체주문환영)',
                     description: '이 텍스트는 너무 길어서 레이아웃을 뚫고 나가는 심각한 UI 결함이 있습니다.',
                     descriptionClass: 'bug-overflow',
                     priceHtml: '12,000원',
                     buttonLabel: '구매하기'
                 },
                 {
-                    emoji: '🧊',
-                    title: '초정밀 냉동고',
-                    description: '영하 80도 유지 스마트 가전',
-                    priceHtml: '2,450,000원',
+                    imageSrc: buildProductImagePath('beef-steak.webp'),
+                    title: '냉장 숙성 비프 스테이크',
+                    description: '프리미엄 냉장 육류 기획전 상품',
+                    priceHtml: '245,000원',
                     buttonLabel: '품절 (클릭 불가)',
                     buttonClass: 'bug-hidden-btn'
                 },
                 {
-                    emoji: '🎧',
-                    title: '노이즈 캔슬링 헤드셋',
-                    description: '최고의 몰입감을 선사합니다.',
-                    priceHtml: '<span class="bug-wrong-calc">350,000원</span><span style="color: #2563eb;">0원 (???)</span>',
+                    imageSrc: buildProductImagePath('nescafe-coffee.webp'),
+                    title: '프리미엄 원두 커피 기획전',
+                    description: '브루잉용 원두와 머그 연출 컷이 포함된 대표 상품입니다.',
+                    priceHtml: '<span class="bug-wrong-calc">35,000원</span><span style="color: #2563eb;">0원 (???)</span>',
                     buttonLabel: '이득보기'
                 }
             ];
 
-            const emojiPool = ['🍞', '🥗', '☕', '🧃', '🍜', '🧴', '⌚', '🧺', '🎮', '💡'];
-            const namePool = ['베이커리', '샐러드', '원두커피', '주스팩', '라면박스', '스킨케어', '스마트워치', '세탁바구니', '게이밍패드', '무드조명'];
+            const productPool = [
+                { title: '담백한 식빵 모음', description: '아침 식사용으로 잘 팔리는 베이커리 묶음입니다.', imageSrc: buildProductImagePath('assorted-breads.jpg') },
+                { title: '제주 감귤 주스', description: '과즙 함량을 강조한 시원한 음료 상품입니다.', imageSrc: buildProductImagePath('orange-juice.jpg') },
+                { title: '신선 우유', description: '냉장 배송 테스트에 자주 쓰는 우유 카드입니다.', imageSrc: buildProductImagePath('milk.webp') },
+                { title: '방목 유정란', description: '계란 이미지 렌더링 품질을 확인하기 좋은 카드입니다.', imageSrc: buildProductImagePath('eggs.webp') },
+                { title: '허니 글라스 보틀', description: '유리병 반사 표현이 포함된 테스트 상품입니다.', imageSrc: buildProductImagePath('honey-jar.webp') },
+                { title: '키위 박스', description: '과일 단면과 입체감이 잘 보이는 카드입니다.', imageSrc: buildProductImagePath('kiwi.webp') },
+                { title: '프리미엄 아이스크림', description: '텍스처와 라벨이 함께 보이는 냉동 상품입니다.', imageSrc: buildProductImagePath('ice-cream.webp') },
+                { title: '프리미엄 식용유', description: '플라스틱 용기와 라벨 선명도를 보기 좋은 카드입니다.', imageSrc: buildProductImagePath('cooking-oil.webp') },
+                { title: '레드 애플 묶음', description: '색 대비가 강한 과일 이미지 테스트용 카드입니다.', imageSrc: buildProductImagePath('apple.webp') },
+                { title: '스테이크 플래터', description: '어두운 색상과 지방 표현이 섞인 육류 카드입니다.', imageSrc: buildProductImagePath('beef-steak.webp') },
+                { title: '아메리카노 원두', description: '브라운 톤 제품 이미지 확인용 커피 카드입니다.', imageSrc: buildProductImagePath('nescafe-coffee.webp') },
+                { title: '과즙 주스팩', description: '밝은 배경 위 패키지 선명도를 확인하는 카드입니다.', imageSrc: buildProductImagePath('juice.webp') }
+            ];
 
             for (let i = products.length; i < totalCount; i += 1) {
-                const index = i % emojiPool.length;
+                const index = i % productPool.length;
                 const price = 4900 + (i * 1370);
+                const baseProduct = productPool[index];
 
                 products.push({
-                    emoji: emojiPool[index],
-                    title: `테스트 상품 ${String(i + 1).padStart(3, '0')} - ${namePool[index]}`,
-                    description: `캡처 품질 검증용 테스트 상품 카드 ${i + 1}번입니다.`,
+                    imageSrc: baseProduct.imageSrc,
+                    title: `테스트 상품 ${String(i + 1).padStart(3, '0')} - ${baseProduct.title}`,
+                    description: `${baseProduct.description} 캡처 품질 검증용 테스트 상품 카드 ${i + 1}번입니다.`,
                     priceHtml: `${price.toLocaleString('ko-KR')}원`,
                     buttonLabel: i % 7 === 0 ? '바로 구매' : '장바구니 담기'
                 });
