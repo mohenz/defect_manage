@@ -7,6 +7,32 @@ const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABAS
 const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, test_type, creator, assignee';
 const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end';
 
+function normalizeScreenPathValue(screenPath = '') {
+    return String(screenPath || '')
+        .split('>')
+        .map(part => part.replace(/\u3000/g, ' ').trim())
+        .filter(Boolean)
+        .join(' > ');
+}
+
+function parseScreenPathFilter(screenPath = '') {
+    const normalized = normalizeScreenPathValue(screenPath);
+    if (!normalized) {
+        return {
+            menuName: '',
+            screenName: ''
+        };
+    }
+
+    const parts = normalized.split(' > ').filter(Boolean);
+    const screenName = parts.pop() || '';
+
+    return {
+        menuName: parts.join(' > '),
+        screenName
+    };
+}
+
 const StorageService = {
     /**
      * Internal: Log changes to defect_history table
@@ -209,6 +235,11 @@ const StorageService = {
             query = query.in('test_type', filters.enabledTestTypes);
         }
         if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.screenPath) {
+            const parsedScreenPath = parseScreenPathFilter(filters.screenPath);
+            if (parsedScreenPath.menuName) query = query.eq('menu_name', parsedScreenPath.menuName);
+            if (parsedScreenPath.screenName) query = query.eq('screen_name', parsedScreenPath.screenName);
+        }
         if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
         if (filters.assigneeUnassigned) {
             query = query.or('assignee.is.null,assignee.eq.');
@@ -246,6 +277,11 @@ const StorageService = {
             query = query.in('test_type', filters.enabledTestTypes);
         }
         if (filters.identification) query = query.eq('defect_identification', filters.identification);
+        if (filters.screenPath) {
+            const parsedScreenPath = parseScreenPathFilter(filters.screenPath);
+            if (parsedScreenPath.menuName) query = query.eq('menu_name', parsedScreenPath.menuName);
+            if (parsedScreenPath.screenName) query = query.eq('screen_name', parsedScreenPath.screenName);
+        }
         if (filters.creator) query = query.ilike('creator', `%${filters.creator}%`);
         if (filters.assigneeUnassigned) {
             query = query.or('assignee.is.null,assignee.eq.');

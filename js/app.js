@@ -76,6 +76,75 @@ window.App = {
         return filteredCodes;
     },
 
+    normalizeScreenPath(screenPath = '') {
+        return String(screenPath || '')
+            .split('>')
+            .map(part => part.replace(/\u3000/g, ' ').trim())
+            .filter(Boolean)
+            .join(' > ');
+    },
+
+    buildScreenPath(menuName = '', screenName = '') {
+        return this.normalizeScreenPath([menuName, screenName].filter(Boolean).join(' > '));
+    },
+
+    parseScreenPath(screenPath = '') {
+        const normalizedPath = this.normalizeScreenPath(screenPath);
+        if (!normalizedPath) {
+            return {
+                screenPath: '',
+                menuName: '',
+                screenName: ''
+            };
+        }
+
+        const parts = normalizedPath.split(' > ').filter(Boolean);
+        const screenName = parts.pop() || '';
+
+        return {
+            screenPath: normalizedPath,
+            menuName: parts.join(' > '),
+            screenName
+        };
+    },
+
+    getScreenPathOptions(selectedValue = '') {
+        const normalizedSelected = this.normalizeScreenPath(selectedValue);
+        const codes = this.getCodesByGroup('SCREEN_PATH').map(code => ({
+            ...code,
+            code_value: this.normalizeScreenPath(code.code_value),
+            code_name: this.normalizeScreenPath(code.code_name || code.code_value)
+        })).filter(code => code.code_value);
+
+        if (normalizedSelected && !codes.some(code => code.code_value === normalizedSelected)) {
+            return [
+                ...codes,
+                {
+                    group_code: 'SCREEN_PATH',
+                    code_value: normalizedSelected,
+                    code_name: normalizedSelected,
+                    sort_order: Number.MAX_SAFE_INTEGER
+                }
+            ];
+        }
+
+        return codes;
+    },
+
+    updateScreenPathPreview(screenPath = '') {
+        const parsed = this.parseScreenPath(screenPath);
+        const menuInput = document.getElementById('menuNamePreview');
+        const screenInput = document.getElementById('screenNamePreview');
+
+        if (menuInput) {
+            menuInput.value = parsed.menuName;
+        }
+
+        if (screenInput) {
+            screenInput.value = parsed.screenName;
+        }
+    },
+
     getUserStatusOptions(selectedValue = '') {
         const defaults = [
             { code_value: '사용', code_name: '사용' },
@@ -119,7 +188,8 @@ window.App = {
                 testType: '',
                 dateStart: '',
                 dateEnd: '',
-                identification: ''
+                identification: '',
+                screenPath: ''
             }
         },
         settings: {
@@ -1099,7 +1169,8 @@ window.App = {
             testType: '',
             dateStart: '',
             dateEnd: '',
-            identification: ''
+            identification: '',
+            screenPath: ''
         };
         this.state.listConfig.page = 1;
         this.navigate('list');
@@ -1117,7 +1188,8 @@ window.App = {
             testType: '',
             dateStart: '',
             dateEnd: '',
-            identification: ''
+            identification: '',
+            screenPath: ''
         };
         this.state.listConfig.page = 1;
         this.navigate('list');
@@ -1135,7 +1207,8 @@ window.App = {
             testType: '',
             dateStart: '',
             dateEnd: '',
-            identification: ''
+            identification: '',
+            screenPath: ''
         };
         this.state.listConfig.page = 1;
         this.navigate('list');
@@ -1767,6 +1840,15 @@ window.App = {
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">발생 화면</label>
+                        <select id="searchScreenPath">
+                            <option value="">전체</option>
+                            ${this.getScreenPathOptions(search.screenPath).map(code => `
+                                <option value="${this.sanitize(code.code_value)}" ${search.screenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">결함 제목</label>
                         <input type="text" id="searchTitle" value="${search.title}" onkeydown="if(event.key==='Enter') App.handleSearch()" placeholder="제목 키워드 검색 (Enter)">
                     </div>
@@ -1881,14 +1963,15 @@ window.App = {
         this.state.listConfig.search = {
             severity: document.getElementById('searchSeverity').value,
             status: document.getElementById('searchStatus').value,
+            identification: document.getElementById('searchIdentification').value,
+            screenPath: document.getElementById('searchScreenPath').value,
             title: document.getElementById('searchTitle').value,
             stepsToRepro: document.getElementById('searchStepsToRepro').value,
             creator: document.getElementById('searchCreator').value,
             assignee: document.getElementById('searchAssignee').value,
             testType: document.getElementById('searchTestType').value,
             dateStart: document.getElementById('searchDateStart').value,
-            dateEnd: document.getElementById('searchDateEnd').value,
-            identification: document.getElementById('searchIdentification').value
+            dateEnd: document.getElementById('searchDateEnd').value
         };
         this.state.listConfig.page = 1;
         this.fetchData();
@@ -1906,7 +1989,8 @@ window.App = {
             testType: '',
             dateStart: '',
             dateEnd: '',
-            identification: ''
+            identification: '',
+            screenPath: ''
         };
         this.state.listConfig.page = 1;
         this.fetchData(); // 초기화 후 즉시 전체 재조회
@@ -2003,6 +2087,14 @@ window.App = {
         const canAssign = isNewDefect || this.canEditAssignee();
         let item = itemOverride || (id ? this.getSelectedDefect(id) : {}) || {};
 
+        if (isNewDefect) {
+            item = {
+                severity: 'Minor',
+                priority: 'Medium',
+                ...item
+            };
+        }
+
         // Handle pending data (Priority: postMessage > localStorage)
         if (!id) {
             const pendingFromMessage = this.state.pendingDefectData;
@@ -2038,6 +2130,8 @@ window.App = {
         }
 
         const title = id ? '결함 정보 관리' : '신규 결함 등록';
+        const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
+        const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
 
         container.innerHTML = `
             <div style="margin-bottom: 2rem;">
@@ -2057,6 +2151,28 @@ window.App = {
                     <div class="form-group">
                         <label>결함 제목 (필수)</label>
                         <input type="text" name="title" value="${this.sanitize(item.title || '')}" required placeholder="간결하고 명확한 제목을 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label>결함 발생 화면</label>
+                        <select name="screen_path" onchange="App.updateScreenPathPreview(this.value)">
+                            <option value="">선택하세요</option>
+                            ${this.getScreenPathOptions(selectedScreenPath).map(code => `
+                                <option value="${this.sanitize(code.code_value)}" ${selectedScreenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
+                            `).join('')}
+                        </select>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 공통코드의 화면 목록에서 선택하면 메뉴명과 화면명이 자동으로 매핑됩니다.</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label>메뉴명</label>
+                            <input type="text" id="menuNamePreview" value="${this.sanitize(parsedScreenPath.menuName || item.menu_name || '')}" placeholder="선택한 화면 기준으로 자동 입력" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>화면명</label>
+                            <input type="text" id="screenNamePreview" value="${this.sanitize(parsedScreenPath.screenName || item.screen_name || '')}" placeholder="선택한 화면 기준으로 자동 입력" readonly>
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
@@ -2107,17 +2223,6 @@ window.App = {
                                     : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>')
                             }
                             ${!canAssign ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                        <div class="form-group">
-                            <label>메뉴명</label>
-                            <input type="text" name="menu_name" value="${this.sanitize(item.menu_name || '')}" placeholder="예: 메인화면, 상품상세">
-                        </div>
-                        <div class="form-group">
-                            <label>화면명</label>
-                            <input type="text" name="screen_name" value="${this.sanitize(item.screen_name || '')}" placeholder="예: SCR_001, 장바구니">
                         </div>
                     </div>
 
@@ -2637,6 +2742,7 @@ window.App = {
         const formData = new FormData(form);
         const currentUserName = this.state.currentUser?.name || null;
         const existing = id ? this.getSelectedDefect(id) || {} : {};
+        const fallbackScreenPath = this.buildScreenPath(existing.menu_name || '', existing.screen_name || '');
 
         const value = (key, fallback = '') => {
             const raw = formData.get(key);
@@ -2644,16 +2750,18 @@ window.App = {
             return typeof raw === 'string' ? raw.trim() : raw;
         };
 
+        const parsedScreenPath = this.parseScreenPath(value('screen_path', fallbackScreenPath));
+
         return {
             test_type: value('test_type', existing.test_type || '단위테스트'),
             title: value('title', existing.title || ''),
             severity: value('severity', existing.severity || 'Minor'),
-            priority: value('priority', existing.priority || 'P3'),
+            priority: value('priority', existing.priority || 'Medium'),
             steps_to_repro: value('steps_to_repro', existing.steps_to_repro || ''),
             creator: value('creator', existing.creator || currentUserName || ''),
             assignee: value('assignee', existing.assignee || ''),
-            menu_name: value('menu_name', existing.menu_name || ''),
-            screen_name: value('screen_name', existing.screen_name || ''),
+            menu_name: parsedScreenPath.menuName,
+            screen_name: parsedScreenPath.screenName,
             screen_url: value('screen_url', existing.screen_url || ''),
             screenshot: value('screenshot', existing.screenshot || ''),
             status: value('status', existing.status || 'Open'),

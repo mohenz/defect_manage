@@ -6,6 +6,7 @@
     "scripts": {
         "start": "node server.js",
         "check:syntax": "node scripts/check-syntax.js",
+        "seed:screen-paths": "node scripts/import-screen-path-codes.js",
         "test:unit": "vitest run",
         "test:e2e": "playwright test"
     },
