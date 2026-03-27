@@ -37,7 +37,7 @@ CREATE TABLE defects (
     menu_name       VARCHAR(100),                -- 메뉴명
     screen_name     VARCHAR(100),                -- 화면명
     screen_url      TEXT,                        -- 관련 화면 URL (또는 캡처 원본 링크)
-    screenshot      TEXT,                        -- 캡처 이미지 URL (Supabase Storage 연동)
+    screenshot      TEXT,                        -- 캡처 이미지 (기존 URL 또는 신규 inline data URL)
     defect_identification VARCHAR(50),           -- 결함식별 (기존결함, 협의필요, 신규요구사항, 결함아님)
     env_info        TEXT,                        -- 테스트 환경 정보 (Browser/OS)
     creator         VARCHAR(50),                 -- 등록자 (사용자 성함 연동)
@@ -70,6 +70,6 @@ CREATE TABLE app_settings (
 
 *   **인증 보안**: `password` 필드는 클라이언트 측에서 `bcryptjs`를 통해 해싱된 값만 저장하며, 일반 텍스트는 서버로 전달되지 않습니다.
 *   **결함식별**: `defect_identification` 필드는 현업/개발 간의 의사소통을 위해 추가되었으며, 조치자 및 관리자만 수정 권한을 가집니다.
-*   **스토리지 연동**: `screenshot` 필드는 과거 Base64 직접 저장 방식에서 **Supabase Storage(defect-images 버킷)**의 Public URL을 저장하는 방식으로 고도화되었습니다.
+*   **이미지 저장 구조**: `screenshot` 필드는 기존 데이터의 URL 형식과 신규 데이터의 inline data URL 형식을 함께 허용합니다.
 *   **시간대(Timezone)**: 모든 시간 데이터는 `TIMESTAMPTZ`를 사용하며, 애플리케이션에서 `Asia/Seoul` 기준으로 처리됩니다.
 *   **데이터 타입**: `defect_id`와 `user_id`는 JavaScript의 `Date.now()` 값이 입력되므로 `BIGINT` 타입을 유지합니다.

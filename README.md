@@ -12,7 +12,7 @@ DefectFlow is a web-based defect management tool that uses Supabase for data man
 
 ## 📁 Tech Stack
 - **Frontend**: HTML, JavaScript (Vanilla), CSS
-- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL, Auth, Storage)
+- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL)
 - **Encryption**: `bcryptjs` (Password hashing)
 - **Additional Libraries**: `html2canvas` (Screen capture)
 
@@ -25,7 +25,7 @@ DefectFlow is a web-based defect management tool that uses Supabase for data man
 - **Dashboard**: Displays defect statistics and status charts.
 - **Defect Management**: Search, filter, view details, and edit defect reports.
 - **Test Bench Integration**: External site widget for defect registration and automated screen capture.
-- **Image Storage**: Defect screenshots are uploaded to Supabase Storage.
+- **Image Storage**: Existing screenshots may use legacy URLs, and new screenshots are stored inline in `defects.screenshot`.
 
 ---
 *Created and maintained by Antigravity AI Assistant.*
