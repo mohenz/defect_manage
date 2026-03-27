@@ -163,57 +163,12 @@
             <i class="fas fa-circle-info" style="color: #3b82f6;"></i>
             <strong>QA 안내:</strong> 본 화면은 테스트용 시뮬레이션입니다. 상단 혹은 하단의 버튼을 눌러 발견한 결함을 등록해 주세요.
         </p>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.75rem;">
+            테스트용 상품 목록 수량: <strong id="productCountLabel">100개</strong>
+        </p>
     </div>
 
-    <div class="product-grid">
-        <!-- 정상 상품 -->
-        <div class="product-card">
-            <div class="product-img">🍎</div>
-            <div class="product-info">
-                <h3>유기농 사과 세트</h3>
-                <p style="color: #64748b; margin: 0.5rem 0;">신선한 경북 사과 10kg</p>
-                <div class="price">55,000원</div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">장바구니 담기</button>
-            </div>
-        </div>
-
-        <!-- 버그 상품 1: 레이아웃 텍스트 오버플로우 -->
-        <div class="product-card">
-            <div class="product-img">🍱</div>
-            <div class="product-info">
-                <h3>프리미엄 도시락 세트 (가정용/피크닉용/단체주문환영)</h3>
-                <p class="bug-overflow">이 텍스트는 너무 길어서 레이아웃을 뚫고 나가는 심각한 UI 결함이 있습니다.</p>
-                <div class="price">12,000원</div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">구매하기</button>
-            </div>
-        </div>
-
-        <!-- 버그 상품 2: 기능 오류 (버튼 사라짐/안눌림) -->
-        <div class="product-card">
-            <div class="product-img">🧊</div>
-            <div class="product-info">
-                <h3>초정밀 냉동고</h3>
-                <p style="color: #64748b; margin: 0.5rem 0;">영하 80도 유지 스마트 가전</p>
-                <div class="price">2,450,000원</div>
-                <button class="btn btn-primary bug-hidden-btn" style="width: 100%; margin-top: 1rem;">품절 (클릭
-                    불가)</button>
-            </div>
-        </div>
-
-        <!-- 버그 상품 3: 데이터/가격 계산 오류 -->
-        <div class="product-card">
-            <div class="product-img">🎧</div>
-            <div class="product-info">
-                <h3>노이즈 캔슬링 헤드셋</h3>
-                <p style="color: #64748b; margin: 0.5rem 0;">최고의 몰입감을 선사합니다.</p>
-                <div class="price">
-                    <span class="bug-wrong-calc">350,000원</span>
-                    <span style="color: #2563eb;">0원 (???)</span>
-                </div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;">이득보기</button>
-            </div>
-        </div>
-    </div>
+    <div class="product-grid" id="productGrid"></div>
 
     <div class="report-fab" id="openReport">
         <i class="fas fa-bug"></i>
@@ -304,6 +259,92 @@
             return buildCaptureDataUrl(canvas);
         }
 
+        function createProductCard(product) {
+            const descClass = product.descriptionClass ? ` class="${product.descriptionClass}"` : '';
+            const buttonClass = product.buttonClass ? ` ${product.buttonClass}` : '';
+
+            return `
+                <div class="product-card">
+                    <div class="product-img">${product.emoji}</div>
+                    <div class="product-info">
+                        <h3>${product.title}</h3>
+                        <p${descClass} style="${product.descriptionClass ? '' : 'color: #64748b; margin: 0.5rem 0;'}">${product.description}</p>
+                        <div class="price">${product.priceHtml}</div>
+                        <button class="btn btn-primary${buttonClass}" style="width: 100%; margin-top: 1rem;">${product.buttonLabel}</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildTestProducts(totalCount = 100) {
+            const products = [
+                {
+                    emoji: '🍎',
+                    title: '유기농 사과 세트',
+                    description: '신선한 경북 사과 10kg',
+                    priceHtml: '55,000원',
+                    buttonLabel: '장바구니 담기'
+                },
+                {
+                    emoji: '🍱',
+                    title: '프리미엄 도시락 세트 (가정용/피크닉용/단체주문환영)',
+                    description: '이 텍스트는 너무 길어서 레이아웃을 뚫고 나가는 심각한 UI 결함이 있습니다.',
+                    descriptionClass: 'bug-overflow',
+                    priceHtml: '12,000원',
+                    buttonLabel: '구매하기'
+                },
+                {
+                    emoji: '🧊',
+                    title: '초정밀 냉동고',
+                    description: '영하 80도 유지 스마트 가전',
+                    priceHtml: '2,450,000원',
+                    buttonLabel: '품절 (클릭 불가)',
+                    buttonClass: 'bug-hidden-btn'
+                },
+                {
+                    emoji: '🎧',
+                    title: '노이즈 캔슬링 헤드셋',
+                    description: '최고의 몰입감을 선사합니다.',
+                    priceHtml: '<span class="bug-wrong-calc">350,000원</span><span style="color: #2563eb;">0원 (???)</span>',
+                    buttonLabel: '이득보기'
+                }
+            ];
+
+            const emojiPool = ['🍞', '🥗', '☕', '🧃', '🍜', '🧴', '⌚', '🧺', '🎮', '💡'];
+            const namePool = ['베이커리', '샐러드', '원두커피', '주스팩', '라면박스', '스킨케어', '스마트워치', '세탁바구니', '게이밍패드', '무드조명'];
+
+            for (let i = products.length; i < totalCount; i += 1) {
+                const index = i % emojiPool.length;
+                const price = 4900 + (i * 1370);
+
+                products.push({
+                    emoji: emojiPool[index],
+                    title: `테스트 상품 ${String(i + 1).padStart(3, '0')} - ${namePool[index]}`,
+                    description: `캡처 품질 검증용 테스트 상품 카드 ${i + 1}번입니다.`,
+                    priceHtml: `${price.toLocaleString('ko-KR')}원`,
+                    buttonLabel: i % 7 === 0 ? '바로 구매' : '장바구니 담기'
+                });
+            }
+
+            return products.slice(0, totalCount);
+        }
+
+        function renderProductGrid(totalCount = 100) {
+            const grid = document.getElementById('productGrid');
+            const label = document.getElementById('productCountLabel');
+
+            if (!grid) {
+                return;
+            }
+
+            const products = buildTestProducts(totalCount);
+            grid.innerHTML = products.map(createProductCard).join('');
+
+            if (label) {
+                label.textContent = `${products.length}개`;
+            }
+        }
+
         async function openRegister() {
             console.log("[TestBench] Starting capture sequence...");
 
@@ -391,6 +432,7 @@
             }
         }
 
+        renderProductGrid(100);
         document.getElementById('openReport').addEventListener('click', openRegister);
     </script>
 </body>
