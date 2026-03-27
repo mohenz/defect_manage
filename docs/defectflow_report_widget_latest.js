@@ -1,60 +1,5 @@
 (function () {
     const DEFECTFLOW_URL = "https://mohenz.github.io/defect_manage/";
-    const HTML2CANVAS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-
-    function loadHtml2Canvas() {
-        if (typeof window.html2canvas !== "undefined") {
-            return Promise.resolve(window.html2canvas);
-        }
-
-        return new Promise((resolve, reject) => {
-            const existing = document.querySelector('script[data-defectflow-html2canvas="true"]');
-            if (existing) {
-                existing.addEventListener("load", () => resolve(window.html2canvas), { once: true });
-                existing.addEventListener("error", () => reject(new Error("html2canvas load failed")), { once: true });
-                return;
-            }
-
-            const script = document.createElement("script");
-            script.src = HTML2CANVAS_CDN;
-            script.async = true;
-            script.dataset.defectflowHtml2canvas = "true";
-            script.onload = () => resolve(window.html2canvas);
-            script.onerror = () => reject(new Error("html2canvas load failed"));
-            document.head.appendChild(script);
-        });
-    }
-
-    async function waitForCaptureAssets(timeoutMs) {
-        const fontReady = document.fonts && document.fonts.ready
-            ? document.fonts.ready.catch(() => undefined)
-            : Promise.resolve();
-
-        const imagePromises = Array.from(document.images || [])
-            .filter((img) => !img.complete)
-            .map((img) => new Promise((resolve) => {
-                const cleanup = () => {
-                    img.removeEventListener("load", cleanup);
-                    img.removeEventListener("error", cleanup);
-                    resolve();
-                };
-                img.addEventListener("load", cleanup, { once: true });
-                img.addEventListener("error", cleanup, { once: true });
-            }));
-
-        await Promise.race([
-            Promise.all([fontReady, ...imagePromises]),
-            new Promise((resolve) => setTimeout(resolve, timeoutMs || 1500))
-        ]);
-    }
-
-    function getCaptureScale(width, height) {
-        const baseScale = Math.min(2, Math.max(1.5, window.devicePixelRatio || 1));
-        const maxPixels = 16000000;
-        const estimatedPixels = width * height;
-        const safeScale = Math.sqrt(maxPixels / Math.max(estimatedPixels, 1));
-        return Math.max(1, Math.min(baseScale, safeScale));
-    }
 
     function resizeCanvas(sourceCanvas, ratio) {
         const nextCanvas = document.createElement("canvas");
@@ -123,34 +68,88 @@
         }
     }
 
-    async function captureCurrentScreen() {
-        const html2canvas = await loadHtml2Canvas();
-        await waitForCaptureAssets(1500);
+    async function captureCurrentTab() {
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== "function") {
+            throw new Error("tab-capture-not-supported");
+        }
 
-        const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
-        const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
-        const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-        const height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-        const scale = getCaptureScale(width, height);
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const idealWidth = Math.max(1280, Math.round((window.innerWidth || 1280) * dpr));
+        const idealHeight = Math.max(720, Math.round((window.innerHeight || 720) * dpr));
+        let stream = null;
 
-        const canvas = await html2canvas(document.documentElement, {
-            logging: false,
-            useCORS: true,
-            allowTaint: false,
-            scale: scale,
-            backgroundColor: "#ffffff",
-            imageTimeout: 15000,
-            width: width,
-            height: height,
-            x: captureX,
-            y: captureY,
-            scrollX: captureX,
-            scrollY: captureY,
-            windowWidth: width,
-            windowHeight: height
-        });
+        try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    displaySurface: "browser",
+                    preferCurrentTab: true,
+                    selfBrowserSurface: "include",
+                    surfaceSwitching: "exclude",
+                    width: { ideal: idealWidth },
+                    height: { ideal: idealHeight },
+                    frameRate: { ideal: 2, max: 5 }
+                },
+                audio: false
+            });
 
-        return buildCaptureDataUrl(canvas);
+            const track = stream.getVideoTracks()[0];
+            if (!track) {
+                throw new Error("tab-capture-no-track");
+            }
+
+            const settings = typeof track.getSettings === "function" ? track.getSettings() : {};
+            if (settings.displaySurface && settings.displaySurface !== "browser") {
+                throw new Error("tab-capture-not-browser-surface");
+            }
+
+            const video = document.createElement("video");
+            video.muted = true;
+            video.playsInline = true;
+            video.srcObject = stream;
+
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => resolve();
+                video.onerror = () => reject(new Error("tab-capture-video-error"));
+            });
+
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.then === "function") {
+                await playPromise.catch(() => undefined);
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 250));
+
+            if (typeof video.requestVideoFrameCallback === "function") {
+                await new Promise((resolve) => {
+                    video.requestVideoFrameCallback(() => resolve());
+                });
+            }
+
+            const width = Math.max(video.videoWidth || 0, settings.width || 0, window.innerWidth || 1280);
+            const height = Math.max(video.videoHeight || 0, settings.height || 0, window.innerHeight || 720);
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            canvas.width = width;
+            canvas.height = height;
+
+            if (!context) {
+                throw new Error("tab-capture-no-context");
+            }
+
+            context.drawImage(video, 0, 0, width, height);
+
+            const dataUrl = buildCaptureDataUrl(canvas);
+            if (!dataUrl) {
+                throw new Error("tab-capture-empty");
+            }
+
+            return dataUrl;
+        } finally {
+            if (stream) {
+                stream.getTracks().forEach((track) => track.stop());
+            }
+        }
     }
 
     function ensureFontAwesome() {
@@ -268,6 +267,26 @@
         };
     }
 
+    function resolveCaptureErrorMessage(err) {
+        if (!err || !err.message) {
+            return "탭 캡처 중 오류가 발생했습니다.";
+        }
+
+        if (err.message === "tab-capture-not-supported") {
+            return "이 브라우저는 탭 캡처를 지원하지 않습니다. Chrome 또는 Edge에서 다시 시도해 주세요.";
+        }
+
+        if (err.message === "tab-capture-not-browser-surface") {
+            return "공유 화면 선택 창에서 현재 탭을 선택해 주세요.";
+        }
+
+        if (err.name === "NotAllowedError" || err.name === "AbortError") {
+            return "탭 캡처가 취소되었습니다.";
+        }
+
+        return "탭 캡처 중 오류가 발생했습니다.";
+    }
+
     async function handleReportClick(btn) {
         const originalContent = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -292,8 +311,7 @@
                 return;
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 150));
-            const screenshot = await captureCurrentScreen();
+            const screenshot = await captureCurrentTab();
             const defectData = buildDefectData(screenshot);
 
             if (!defectData.screenshot) {
@@ -315,11 +333,11 @@
             window.addEventListener("message", messageHandler);
             popup.location.href = `${DEFECTFLOW_URL}?mode=standalone#register`;
         } catch (err) {
-            console.error("[DefectFlow] Capture failed:", err);
+            console.error("[DefectFlow] Tab capture failed:", err);
             if (popup && !popup.closed) {
                 popup.close();
             }
-            alert("캡처 중 오류가 발생했습니다.");
+            alert(resolveCaptureErrorMessage(err));
         } finally {
             btn.innerHTML = originalContent;
             btn.disabled = false;
