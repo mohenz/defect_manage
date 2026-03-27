@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="defectflow:screen-path" content="FO (MO) > 메인화면 > 슬라이딩배너, 중분류">
+    <meta name="defectflow:test-type" content="통합테스트">
+    <meta name="defectflow:severity" content="Minor">
+    <meta name="defectflow:priority" content="Medium">
+    <meta name="defectflow:title" content="[모바일 테스트베드] 결함 등록">
+    <title>모바일 테스트 베드 - ZeroStore Mobile</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+            min-height: 100vh;
+            padding: 20px 0 40px;
+            display: block;
+        }
+
+        .mobile-bed-wrap {
+            max-width: 430px;
+            margin: 0 auto;
+            padding: 0 12px;
+        }
+
+        .mobile-shell {
+            background: #ffffff;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+        }
+
+        .mobile-status {
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            background: #f8fafc;
+        }
+
+        .mobile-header {
+            padding: 16px 18px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+        }
+
+        .mobile-header h1 {
+            font-size: 1.1rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .mobile-header p {
+            margin: 0;
+            font-size: 0.85rem;
+            opacity: 0.88;
+        }
+
+        .hero-card {
+            margin: 16px;
+            padding: 16px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            color: #0f172a;
+        }
+
+        .hero-card .title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 0.35rem;
+        }
+
+        .hero-card .desc {
+            font-size: 0.85rem;
+            color: #334155;
+            margin-bottom: 0.9rem;
+        }
+
+        .section {
+            padding: 0 16px 16px;
+        }
+
+        .section-title { margin-bottom: 12px; }
+
+        .section-title h2 {
+            font-size: 0.98rem;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        .card-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .product-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .product-thumb {
+            height: 150px;
+            background: #e2e8f0;
+        }
+
+        .product-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .product-body {
+            padding: 14px;
+        }
+
+        .product-name {
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.35rem;
+        }
+
+        .product-desc {
+            font-size: 0.84rem;
+            color: #64748b;
+            line-height: 1.45;
+            margin-bottom: 0.6rem;
+        }
+
+        .product-desc.is-bug {
+            white-space: nowrap;
+            overflow: visible;
+            width: 120px;
+            color: #dc2626;
+            font-weight: 800;
+            border: 2px dashed #ef4444;
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
+
+        .product-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .product-price {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .bottom-nav {
+            position: sticky;
+            bottom: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px 16px 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0), #ffffff 22%);
+        }
+
+        .bottom-nav div {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            text-align: center;
+            padding: 10px 6px;
+            font-size: 0.74rem;
+            color: #334155;
+        }
+
+        .guide-box {
+            margin: 18px auto 0;
+            max-width: 430px;
+            color: #334155;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 18px;
+            padding: 14px 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mobile-bed-wrap">
+        <div class="mobile-shell">
+            <div class="mobile-status">
+                <span>9:41</span>
+                <span><i class="fas fa-signal"></i> <i class="fas fa-wifi"></i> 87%</span>
+            </div>
+
+            <div class="mobile-header">
+                <h1>ZeroStore Mobile 테스트 베드</h1>
+                <p>모바일웹 간편 결함 등록 모드를 시험하기 위한 샌드박스입니다.</p>
+            </div>
+
+            <div class="hero-card">
+                <div class="title">모바일 전용 간편 등록 테스트</div>
+                <div class="desc">우측 하단 `신고하기` 버튼 하나로 모바일 간편 등록 화면을 호출하는 공통 위젯 구조를 시험합니다.</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <h2>오늘의 특가</h2>
+                </div>
+
+                <div class="card-list">
+                    <div class="product-card">
+                        <div class="product-thumb">
+                            <img src="./assets/products/ice-cream.webp" alt="아이스크림">
+                        </div>
+                        <div class="product-body">
+                            <div class="product-name">프리미엄 아이스크림 4입</div>
+                            <div class="product-desc">모바일 카드 스타일과 버튼 위치를 빠르게 테스트할 수 있는 샘플 상품입니다.</div>
+                            <div class="product-meta">
+                                <div class="product-price">9,900원</div>
+                                <button class="btn btn-primary" type="button" style="padding:0.45rem 0.75rem;">담기</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="product-card">
+                        <div class="product-thumb">
+                            <img src="./assets/products/juice.webp" alt="주스">
+                        </div>
+                        <div class="product-body">
+                            <div class="product-name">신선 주스 팩</div>
+                            <div class="product-desc is-bug">이 문구는 일부러 너무 길게 만들어 모바일 카드 레이아웃을 깨뜨리는 테스트용 결함입니다.</div>
+                            <div class="product-meta">
+                                <div class="product-price">5,400원</div>
+                                <button class="btn btn-primary" type="button" style="padding:0.45rem 0.75rem;">담기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <h2>회원가입 흐름</h2>
+                </div>
+
+                <div class="card-list">
+                    <div class="product-card">
+                        <div class="product-body">
+                            <div class="product-name">필수입력항목동의</div>
+                            <div class="product-desc">체크박스 정렬, 버튼 활성화, 안내 문구를 검증하는 샘플 블록입니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-nav">
+                <div><i class="fas fa-house"></i><br>홈</div>
+                <div><i class="fas fa-list"></i><br>카테고리</div>
+                <div><i class="fas fa-cart-shopping"></i><br>장바구니</div>
+                <div><i class="fas fa-user"></i><br>마이</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="guide-box">
+        <strong>테스트 포인트</strong><br>
+        모바일웹 환경에서는 캡처 없이 최소 정보만 등록합니다. 이 테스트 베드는 여러 모바일 페이지에 공통으로 삽입할 수 있는 `신고하기` 위젯 구조를 검증하기 위한 페이지입니다.
+    </div>
+
+    <script>
+        window.DEFECTFLOW_MOBILE_REPORTER_CONFIG = {
+            registerUrl: '../index.html?mode=mobile#register',
+            defaultScreenPath: 'FO (MO) > 메인화면 > 슬라이딩배너, 중분류',
+            defaultTitle: '[모바일 테스트베드] 결함 등록',
+            envTag: 'Mobile Test Bed'
+        };
+    </script>
+    <script src="../docs/defectflow_mobile_report_widget.js"></script>
+</body>
+
+</html>

@@ -560,6 +560,26 @@ body.standalone-mode.logged-in .modal-controls #maximizeBtn {
     display: none !important;
 }
 
+body.mobile-quick-mode .modal-content {
+    padding: 1rem !important;
+}
+
+body.mobile-quick-mode #modalBody > .mobile-quick-form {
+    border-radius: 0.75rem;
+}
+
+body.mobile-quick-mode .mobile-quick-form input,
+body.mobile-quick-mode .mobile-quick-form select,
+body.mobile-quick-mode .mobile-quick-form textarea {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    body.mobile-quick-mode .mobile-quick-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 /* Loading Spinner */
 .loader {
     display: flex;

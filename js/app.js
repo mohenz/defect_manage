@@ -131,6 +131,83 @@ window.App = {
         return codes;
     },
 
+    isMobileFrontOfficeScreenPath(screenPath = '') {
+        const normalized = this.normalizeScreenPath(screenPath);
+        return /^FO\s*\(MO\)\s*>/i.test(normalized);
+    },
+
+    getMobileScreenPathOptions(selectedValue = '') {
+        const normalizedSelected = this.normalizeScreenPath(selectedValue);
+        const codes = this.getScreenPathOptions(selectedValue).filter(code =>
+            this.isMobileFrontOfficeScreenPath(code.code_value)
+        );
+
+        if (normalizedSelected && !codes.some(code => code.code_value === normalizedSelected) && this.isMobileFrontOfficeScreenPath(normalizedSelected)) {
+            return [
+                ...codes,
+                {
+                    group_code: 'SCREEN_PATH',
+                    code_value: normalizedSelected,
+                    code_name: normalizedSelected,
+                    sort_order: Number.MAX_SAFE_INTEGER
+                }
+            ];
+        }
+
+        return codes;
+    },
+
+    getRegisterUrl(mode = 'standalone') {
+        const baseUrl = new URL(window.location.href);
+        baseUrl.search = '';
+        baseUrl.hash = '';
+        baseUrl.searchParams.set('mode', mode);
+        baseUrl.hash = 'register';
+        return baseUrl.toString();
+    },
+
+    buildPendingDefectSeed(source = {}) {
+        const parsedScreenPath = this.parseScreenPath(source.screen_path || this.buildScreenPath(source.menu_name, source.screen_name));
+
+        return {
+            title: source.title || '',
+            menu_name: source.menu_name || parsedScreenPath.menuName || '',
+            screen_name: source.screen_name || parsedScreenPath.screenName || '',
+            screen_url: source.screen_url || window.location.href,
+            screenshot: '',
+            env_info: source.env_info || '',
+            test_type: source.test_type || '',
+            steps_to_repro: source.steps_to_repro || '',
+            creator: source.creator || '',
+            severity: source.severity || 'Minor',
+            priority: source.priority || 'Medium',
+            status: source.status || 'Open',
+            defect_identification: source.defect_identification || '',
+            assignee: source.assignee || ''
+        };
+    },
+
+    openMobileQuickRegister() {
+        const form = document.getElementById('defectForm');
+        let seed = this.buildPendingDefectSeed({
+            creator: this.state.currentUser?.name || '',
+            screen_url: window.location.href
+        });
+
+        if (form) {
+            const payload = this.buildDefectPayload(form, null);
+            seed = this.buildPendingDefectSeed(payload);
+        }
+
+        try {
+            localStorage.setItem('pending_defect', JSON.stringify(seed));
+        } catch (error) {
+            console.error('[App] Failed to save mobile quick seed:', error);
+        }
+
+        window.open(this.getRegisterUrl('mobile'), '_blank', 'noopener,noreferrer');
+    },
+
     updateScreenPathPreview(screenPath = '') {
         const parsed = this.parseScreenPath(screenPath);
         const menuInput = document.getElementById('menuNamePreview');
@@ -185,6 +262,7 @@ window.App = {
         initialRouteHandled: false,
         currentModal: null, // 'register', 'edit', 'action'
         isStandalone: false,
+        isMobileQuickMode: false,
         isLoggedIn: false,
         currentUser: null,
         currentRole: '테스터', // '테스터', '조치자', '관리자'
@@ -247,10 +325,15 @@ window.App = {
 
     initializeRuntimeContext() {
         const params = new URLSearchParams(window.location.search);
-        this.state.isStandalone = params.get('mode') === 'standalone';
+        const mode = params.get('mode');
+        this.state.isMobileQuickMode = mode === 'mobile';
+        this.state.isStandalone = mode === 'standalone' || this.state.isMobileQuickMode;
 
         if (this.state.isStandalone) {
             document.body.classList.add('standalone-mode');
+            if (this.state.isMobileQuickMode) {
+                document.body.classList.add('mobile-quick-mode');
+            }
             const requestedView = window.location.hash.substring(1) || 'register';
             this.state.returnTo = requestedView;
 
@@ -2203,12 +2286,16 @@ window.App = {
                 item = {
                     ...item,
                     title: data.title,
+                    severity: data.severity,
+                    priority: data.priority,
                     menu_name: data.menu_name,
                     screen_name: data.screen_name,
                     screen_url: data.screen_url,
                     screenshot: data.screenshot,
                     env_info: data.env_info,
-                    test_type: data.test_type
+                    test_type: data.test_type,
+                    steps_to_repro: data.steps_to_repro,
+                    creator: data.creator
                 };
                 console.log("[App] Pending defect data consumed. Screenshot status:", !!data.screenshot);
             }
@@ -2223,11 +2310,19 @@ window.App = {
         const title = id ? '결함 정보 관리' : '신규 결함 등록';
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
         const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
+        const showMobileQuickLauncher = isNewDefect && !this.state.isMobileQuickMode;
 
         container.innerHTML = `
-            <div style="margin-bottom: 2rem;">
-                <h1>${title}</h1>
-                <p class="subtitle">결함을 상세하게 기록해 주세요.</p>
+            <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <h1>${title}</h1>
+                    <p class="subtitle">결함을 상세하게 기록해 주세요.</p>
+                </div>
+                ${showMobileQuickLauncher ? `
+                    <button type="button" class="btn" style="background: var(--bg-secondary); border: 1px solid var(--border);" onclick="App.openMobileQuickRegister()">
+                        <i class="fas fa-mobile-screen-button"></i> 모바일 전용 화면 열기
+                    </button>
+                ` : ''}
             </div>
 
             <div class="${id ? '' : 'form-container animate-in'}">
@@ -2410,6 +2505,133 @@ window.App = {
         });
     },
 
+    renderMobileQuickForm(container, itemOverride = null) {
+        const currentUserName = this.state.currentUser?.name || '';
+        let item = {
+            severity: 'Minor',
+            priority: 'Medium',
+            creator: currentUserName,
+            ...itemOverride
+        };
+
+        const pendingFromMessage = this.state.pendingDefectData;
+        const pendingFromLocal = localStorage.getItem('pending_defect');
+        let data = null;
+
+        if (pendingFromMessage) {
+            data = pendingFromMessage;
+        } else if (pendingFromLocal) {
+            try {
+                data = JSON.parse(pendingFromLocal);
+            } catch (error) {
+                console.error('[App] Failed to parse pending_defect:', error);
+                localStorage.removeItem('pending_defect');
+            }
+        }
+
+        if (data) {
+            item = {
+                ...item,
+                title: data.title,
+                severity: data.severity,
+                priority: data.priority,
+                menu_name: data.menu_name,
+                screen_name: data.screen_name,
+                screen_url: data.screen_url,
+                test_type: data.test_type,
+                steps_to_repro: data.steps_to_repro,
+                creator: data.creator
+            };
+        }
+
+        this.state.transientScreenshotData = '';
+        const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
+        const mobileScreenOptions = this.getMobileScreenPathOptions(selectedScreenPath);
+        const envInfo = item.env_info || `Mobile Quick Entry | UA: ${navigator.userAgent}`;
+
+        container.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <h1>모바일 간편 결함 등록</h1>
+                <p class="subtitle">모바일웹 환경에서 필요한 최소 정보만 빠르게 등록합니다.</p>
+            </div>
+
+            <div class="form-container animate-in mobile-quick-form">
+                <form id="defectForm">
+                    <div class="form-group">
+                        <label>결함 제목 (필수)</label>
+                        <input type="text" name="title" value="${this.sanitize(item.title || '')}" required placeholder="문제를 한 줄로 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label>결함 내용 또는 재현 절차 (필수)</label>
+                        <textarea name="steps_to_repro" rows="5" required placeholder="어떤 화면에서 무엇을 했을 때 어떤 문제가 발생했는지 입력하세요">${this.sanitize(item.steps_to_repro || '')}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>테스트 구분 (필수)</label>
+                        <select name="test_type" required>
+                            ${this.getVisibleTestTypeCodes(item.test_type).map(c => `<option value="${c.code_value}" ${item.test_type === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div class="mobile-quick-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>심각도 (필수)</label>
+                            <select name="severity" required>
+                                ${this.getCodesByGroup('SEVERITY').map(c => `<option value="${c.code_value}" ${item.severity === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>우선순위 (필수)</label>
+                            <select name="priority" required>
+                                ${this.getCodesByGroup('PRIORITY').map(c => `<option value="${c.code_value}" ${item.priority === c.code_value ? 'selected' : ''}>${c.code_name}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>결함 발생 화면 (필수)</label>
+                        <select name="screen_path" required>
+                            <option value="">선택하세요</option>
+                            ${mobileScreenOptions.map(code => `
+                                <option value="${this.sanitize(code.code_value)}" ${selectedScreenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>현재 페이지 URL 또는 화면 URL (필수)</label>
+                        <input type="text" name="screen_url" value="${this.sanitize(item.screen_url || '')}" required placeholder="모바일웹 화면 URL을 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label>등록자 (필수)</label>
+                        <input type="text" name="creator" value="${this.sanitize(item.creator || '')}" required placeholder="등록자명을 입력하세요">
+                    </div>
+
+                    <input type="hidden" name="screenshot" value="">
+                    <input type="hidden" name="status" value="${this.sanitize(item.status || 'Open')}">
+                    <input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">
+                    <input type="hidden" name="defect_identification" value="${this.sanitize(item.defect_identification || '')}">
+                    <input type="hidden" name="action_comment" value="">
+                    <input type="hidden" name="action_start" value="">
+                    <input type="hidden" name="action_end" value="">
+                    <input type="hidden" name="env_info" value="${this.sanitize(envInfo)}">
+
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button type="button" class="btn" style="background: rgba(255,255,255,0.05)" onclick="App.closeModal()">취소</button>
+                        <button type="submit" class="btn btn-primary">결함 등록</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('defectForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleFormSubmit(null);
+        });
+    },
+
     renderActionForm(container, id, itemOverride = null) {
         const item = itemOverride || this.getSelectedDefect(id) || {};
         container.innerHTML = `
@@ -2544,7 +2766,11 @@ window.App = {
     showRegisterModal() {
         this.state.currentModal = 'register';
         const modalBody = document.getElementById('modalBody');
-        this.renderForm(modalBody, null);
+        if (this.state.isMobileQuickMode) {
+            this.renderMobileQuickForm(modalBody);
+        } else {
+            this.renderForm(modalBody, null);
+        }
         this.openModal();
     },
 

@@ -23,4 +23,6 @@
 - [user_manual.md](./user_manual.md)
 - [테스트대상_연동가이드.md](./테스트대상_연동가이드.md)
 - [테스트벤치_사용가이드.md](./테스트벤치_사용가이드.md)
+- [defectflow_mobile_report_widget.js](./defectflow_mobile_report_widget.js)
+- [chrome_extension_test_guide.md](./chrome_extension_test_guide.md)
 - [workspace_setup_guide.md](./workspace_setup_guide.md)

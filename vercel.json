@@ -10,6 +10,14 @@
       "destination": "/test_view/test_view.html"
     },
     {
+      "source": "/mobile_test_page",
+      "destination": "/test_view/mobile_test_bed.html"
+    },
+    {
+      "source": "/mobile_test_page/",
+      "destination": "/test_view/mobile_test_bed.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
