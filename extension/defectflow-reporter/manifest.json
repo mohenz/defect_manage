@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "DefectFlow Reporter",
+  "description": "Capture the current visible tab and open DefectFlow registration.",
+  "version": "0.1.0",
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "DefectFlow 결함 등록"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content-defectflow-bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

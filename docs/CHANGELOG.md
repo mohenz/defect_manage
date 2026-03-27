@@ -5,6 +5,18 @@
 
 ---
 
+## [2026-03-28] Chrome 확장프로그램 MVP 추가
+
+### 🔧 기능 개선
+
+#### 49. 팀 테스트용 Chrome 확장프로그램 MVP 추가
+- **배경**: 외부 웹페이지에 위젯 스크립트를 삽입하는 방식은 페이지별 제약과 캡처 정확도 이슈가 있어, 팀 단위로 더 단순한 캡처 방식을 빠르게 검증할 필요가 있었음
+- **변경 사항**:
+  - `압축해제된 확장 프로그램` 방식으로 바로 로드할 수 있는 `DefectFlow Reporter` MVP 추가
+  - Chrome 확장 아이콘 클릭 시 현재 보이는 탭을 캡처하고 현재 사이트 위 오버레이에서 `standalone` 등록 화면을 띄우도록 구성
+  - GitHub Pages 등록 화면과 연결되는 브리지 스크립트 및 팀 테스트 가이드 문서 추가
+- **수정 파일**: `extension/defectflow-reporter/manifest.json`, `extension/defectflow-reporter/background.js`, `extension/defectflow-reporter/content-defectflow-bridge.js`, `extension/defectflow-reporter/README.md`, `docs/chrome_extension_test_guide.md`, `README.md`
+
 ## [2026-03-27] 교체용 최신 위젯 스크립트 추가
 
 ### 🔧 기능 개선

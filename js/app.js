@@ -257,6 +257,9 @@ window.App = {
             if (window.opener) {
                 window.opener.postMessage({ type: 'DEFECTFLOW_READY' }, '*');
             }
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'DEFECTFLOW_READY' }, '*');
+            }
         }
     },
 
@@ -2472,6 +2475,10 @@ window.App = {
 
             if (await StorageService.saveDefect(payload, id)) {
                 alert('조치 결과가 저장되었습니다.');
+                if (this.state.isStandalone) {
+                    this.closeModal();
+                    return;
+                }
                 // 2. Load Common Codes (Added for Phase 3-1)
             try {
                 console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
@@ -2507,6 +2514,10 @@ window.App = {
         if (await StorageService.saveDefect(payload, id)) {
             localStorage.removeItem('pending_defect');
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
+            if (this.state.isStandalone) {
+                this.closeModal();
+                return;
+            }
             // 2. Load Common Codes (Added for Phase 3-1)
             try {
                 console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
@@ -2572,6 +2583,13 @@ window.App = {
 
     closeModal() {
         if (this.state.isStandalone) {
+            if (window.opener) {
+                window.opener.postMessage({ type: 'DEFECTFLOW_CLOSE' }, '*');
+            }
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'DEFECTFLOW_CLOSE' }, '*');
+                return;
+            }
             window.close();
             return;
         }
