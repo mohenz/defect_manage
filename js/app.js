@@ -10,6 +10,24 @@ window.App = {
         return total > 0 ? Math.round(val / total * 100) : 0;
     },
 
+    getCompletionSignal(rate) {
+        if (rate <= 40) {
+            return {
+                key: 'red'
+            };
+        }
+
+        if (rate <= 80) {
+            return {
+                key: 'yellow'
+            };
+        }
+
+        return {
+            key: 'green'
+        };
+    },
+
     // --- Common Codes Helpers ---
     getCodesByGroup(group) {
         if (!this.state.commonCodes) return [];
@@ -970,6 +988,7 @@ window.App = {
         const completionRate = defects.length > 0
             ? Math.round((completedDefects / defects.length) * 100)
             : 0;
+        const overallSignal = this.getCompletionSignal(completionRate);
 
         return `
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
@@ -998,9 +1017,9 @@ window.App = {
                     <div class="stat-value">${unassignedCount}</div>
                     <div class="stat-label">미배정 결함 수</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card completion-signal-card signal-${overallSignal.key}">
                     <div class="stat-value" style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span>${completionRate}%</span>
+                        <span class="completion-rate-text signal-${overallSignal.key}">${completionRate}%</span>
                         <span style="font-size: 1rem; font-weight: 600; color: var(--text-secondary);">${completedDefects}/${defects.length}</span>
                     </div>
                     <div class="stat-label">조치완료율</div>
@@ -1042,7 +1061,7 @@ window.App = {
                                     </td>
                                 `).join('')}
                                 <td style="text-align:center;">
-                                    <strong style="color: var(--success);">${row.completionRate}%</strong>
+                                    <strong class="completion-rate-text signal-${this.getCompletionSignal(row.completionRate).key}">${row.completionRate}%</strong>
                                     <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed}/${row.total}</div>
                                 </td>
                             </tr>
@@ -1057,7 +1076,7 @@ window.App = {
                                     <td style="text-align:center; padding: 1rem; color:${code.color || 'inherit'};">${totals.counts[code.code_value] || 0}</td>
                                 `).join('')}
                                 <td style="text-align:center; padding: 1rem;">
-                                    <strong style="color: var(--success);">${totals.completionRate}%</strong>
+                                    <strong class="completion-rate-text signal-${this.getCompletionSignal(totals.completionRate).key}">${totals.completionRate}%</strong>
                                     <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${totals.completed}/${totals.total}</div>
                                 </td>
                             </tr>

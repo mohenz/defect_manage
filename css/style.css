@@ -163,6 +163,37 @@ h1 {
     color: var(--text-primary);
 }
 
+.completion-signal-card {
+    border-width: 2px;
+}
+
+.completion-signal-card.signal-red {
+    background: #fef2f2;
+    border-color: rgba(220, 38, 38, 0.25);
+}
+
+.completion-signal-card.signal-yellow {
+    background: #fffbeb;
+    border-color: rgba(217, 119, 6, 0.25);
+}
+
+.completion-signal-card.signal-green {
+    background: #ecfdf5;
+    border-color: rgba(5, 150, 105, 0.25);
+}
+
+.completion-rate-text.signal-red {
+    color: var(--error);
+}
+
+.completion-rate-text.signal-yellow {
+    color: var(--warning);
+}
+
+.completion-rate-text.signal-green {
+    color: var(--success);
+}
+
 /* Forms & Inputs */
 .form-container {
     background: var(--bg-main);
