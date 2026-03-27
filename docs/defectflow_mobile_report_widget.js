@@ -107,7 +107,7 @@
     button.id = '__defectflow-mobile-report-btn__';
     button.type = 'button';
     button.setAttribute('aria-label', config.buttonLabel);
-    button.innerHTML = '<span class="df-mobile-report-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9 3.75a3 3 0 0 1 6 0v1.22a5.24 5.24 0 0 1 2.68 2.08l1.98-1.14a.75.75 0 1 1 .75 1.3L18.4 8.35c.22.58.35 1.21.35 1.88v.77h1.5a.75.75 0 0 1 0 1.5h-1.5v.77c0 .67-.13 1.3-.35 1.88l2.01 1.14a.75.75 0 1 1-.75 1.3l-1.98-1.14A5.25 5.25 0 0 1 14.25 19h-4.5a5.25 5.25 0 0 1-3.43-1.31L4.34 18.8a.75.75 0 0 1-.75-1.3l2.01-1.14a5.14 5.14 0 0 1-.35-1.88v-.77h-1.5a.75.75 0 0 1 0-1.5h1.5v-.77c0-.67.13-1.3.35-1.88L3.6 7.21a.75.75 0 0 1 .75-1.3l1.98 1.14A5.24 5.24 0 0 1 9 4.97V3.75Zm1.5.03v1.19h3V3.78a1.5 1.5 0 0 0-3 0Zm-1.5 2.69A3.75 3.75 0 0 0 5.25 10.22v3.56A3.75 3.75 0 0 0 9 17.53h6a3.75 3.75 0 0 0 3.75-3.75v-3.56A3.75 3.75 0 0 0 15 6.47H9Zm1.13 3.03a1.13 1.13 0 1 1 0 2.25 1.13 1.13 0 0 1 0-2.25Zm3.75 0a1.13 1.13 0 1 1 0 2.25 1.13 1.13 0 0 1 0-2.25Z" fill="currentColor"/></svg></span><span class="df-mobile-report-label"></span>';
+    button.innerHTML = '<span class="df-mobile-report-icon" aria-hidden="true">🐞</span>';
 
     const style = document.createElement('style');
     style.textContent = `
@@ -116,37 +116,36 @@
         right: 18px;
         bottom: calc(18px + env(safe-area-inset-bottom, 0px));
         z-index: 2147483646;
-        min-width: 112px;
-        height: 52px;
-        padding: 0 18px;
+        width: 62px;
+        height: 62px;
+        padding: 0;
         border: none;
-        border-radius: 999px;
+        border-radius: 50%;
         background: linear-gradient(135deg, #dc2626, #b91c1c);
         color: #ffffff;
         box-shadow: 0 18px 32px rgba(185, 28, 28, 0.32);
         font-family: "Segoe UI", Apple SD Gothic Neo, sans-serif;
-        font-size: 15px;
+        font-size: 28px;
         font-weight: 700;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
         cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #__defectflow-mobile-report-btn__:active {
+        transform: scale(0.96);
+      }
+      #__defectflow-mobile-report-btn__:hover {
+        box-shadow: 0 20px 36px rgba(185, 28, 28, 0.38);
       }
       #__defectflow-mobile-report-btn__ .df-mobile-report-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
-      }
-      #__defectflow-mobile-report-btn__ .df-mobile-report-icon svg {
-        width: 20px;
-        height: 20px;
-        display: block;
-      }
-      #__defectflow-mobile-report-btn__ .df-mobile-report-label::after {
-        content: "${config.buttonLabel.replace(/"/g, '\\"')}";
+        width: 100%;
+        height: 100%;
+        line-height: 1;
       }
     `;
 
