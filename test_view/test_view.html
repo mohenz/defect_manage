@@ -222,6 +222,88 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
+        async function waitForCaptureAssets(timeoutMs = 1500) {
+            const fontReady = document.fonts && document.fonts.ready
+                ? document.fonts.ready.catch(() => undefined)
+                : Promise.resolve();
+
+            const imagePromises = Array.from(document.images || [])
+                .filter(img => !img.complete)
+                .map(img => new Promise(resolve => {
+                    const cleanup = () => {
+                        img.removeEventListener('load', cleanup);
+                        img.removeEventListener('error', cleanup);
+                        resolve();
+                    };
+                    img.addEventListener('load', cleanup, { once: true });
+                    img.addEventListener('error', cleanup, { once: true });
+                }));
+
+            await Promise.race([
+                Promise.all([fontReady, ...imagePromises]),
+                new Promise(resolve => setTimeout(resolve, timeoutMs))
+            ]);
+        }
+
+        function getCaptureScale(width, height) {
+            const baseScale = Math.min(2, Math.max(1.5, window.devicePixelRatio || 1));
+            const maxPixels = 16000000;
+            const estimatedPixels = width * height;
+            const safeScale = Math.sqrt(maxPixels / Math.max(estimatedPixels, 1));
+            return Math.max(1, Math.min(baseScale, safeScale));
+        }
+
+        function buildCaptureDataUrl(canvas) {
+            const preferredFormats = [
+                { mime: 'image/webp', quality: 0.95 },
+                { mime: 'image/jpeg', quality: 0.92 },
+                { mime: 'image/jpeg', quality: 0.88 }
+            ];
+            const maxLength = 1800000;
+
+            for (const format of preferredFormats) {
+                const dataUrl = canvas.toDataURL(format.mime, format.quality);
+                if (dataUrl && dataUrl !== 'data:,' && dataUrl.length <= maxLength) {
+                    return dataUrl;
+                }
+            }
+
+            return canvas.toDataURL('image/jpeg', 0.82);
+        }
+
+        async function captureCurrentScreen() {
+            await waitForCaptureAssets();
+
+            const width = Math.max(
+                document.documentElement.scrollWidth,
+                document.body.scrollWidth,
+                window.innerWidth
+            );
+            const height = Math.max(
+                document.documentElement.scrollHeight,
+                document.body.scrollHeight,
+                window.innerHeight
+            );
+            const scale = getCaptureScale(width, height);
+
+            console.log("[TestBench] Capture config:", { width, height, scale });
+
+            const canvas = await html2canvas(document.body, {
+                logging: false,
+                useCORS: true,
+                allowTaint: false,
+                scale: scale,
+                backgroundColor: '#ffffff',
+                imageTimeout: 15000,
+                windowWidth: width,
+                windowHeight: height,
+                scrollX: 0,
+                scrollY: -window.scrollY
+            });
+
+            return buildCaptureDataUrl(canvas);
+        }
+
         async function openRegister() {
             console.log("[TestBench] Starting capture sequence...");
 
@@ -255,15 +337,7 @@
             if (typeof html2canvas !== 'undefined') {
                 try {
                     console.log("[TestBench] Running html2canvas...");
-                    const canvas = await html2canvas(document.body, {
-                        logging: true,
-                        useCORS: true,
-                        allowTaint: false,
-                        scale: 1,
-                        backgroundColor: '#f1f5f9'
-                    });
-
-                    screenshot = canvas.toDataURL('image/jpeg', 0.6);
+                    screenshot = await captureCurrentScreen();
                     console.log("[TestBench] Screen captured successfully. Length:", screenshot.length);
                 } catch (err) {
                     console.error("[TestBench] Capture failed:", err);

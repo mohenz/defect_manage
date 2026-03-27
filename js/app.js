@@ -2455,6 +2455,159 @@ window.App = {
         viewer.document.close();
     },
 
+    isImageSource(url) {
+        return !!url && (url.startsWith('data:image') || url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i));
+    },
+
+    readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error('파일을 읽는 중 오류가 발생했습니다.'));
+            reader.readAsDataURL(file);
+        });
+    },
+
+    loadImageElement(src) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'));
+            image.src = src;
+        });
+    },
+
+    async prepareUploadedImage(file) {
+        const rawDataUrl = await this.readFileAsDataUrl(file);
+
+        if (!file.type.startsWith('image/')) {
+            throw new Error('이미지 파일만 업로드할 수 있습니다.');
+        }
+
+        const image = await this.loadImageElement(rawDataUrl);
+        const maxDimension = 2400;
+        const needsResize = Math.max(image.width, image.height) > maxDimension;
+        const needsCompression = file.size > 2 * 1024 * 1024 || rawDataUrl.length > 1_800_000;
+
+        if (!needsResize && !needsCompression) {
+            return rawDataUrl;
+        }
+
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            return rawDataUrl;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        const candidates = [
+            { mime: 'image/webp', quality: 0.92 },
+            { mime: 'image/jpeg', quality: 0.92 },
+            { mime: 'image/jpeg', quality: 0.86 }
+        ];
+
+        for (const candidate of candidates) {
+            const dataUrl = canvas.toDataURL(candidate.mime, candidate.quality);
+            if (dataUrl && dataUrl !== 'data:,' && dataUrl.length < rawDataUrl.length) {
+                return dataUrl;
+            }
+        }
+
+        return rawDataUrl;
+    },
+
+    updateImagePreview(source) {
+        const wrapper = document.getElementById('imagePreviewWrapper');
+        const previewArea = document.getElementById('imagePreviewArea');
+
+        if (!wrapper || !previewArea) {
+            return;
+        }
+
+        if (!source) {
+            wrapper.style.display = 'none';
+            previewArea.innerHTML = '';
+            return;
+        }
+
+        wrapper.style.display = '';
+        previewArea.innerHTML = '';
+
+        if (this.isImageSource(source)) {
+            const image = document.createElement('img');
+            image.src = source;
+            image.style.maxWidth = '100%';
+            image.style.maxHeight = '100%';
+            image.style.objectFit = 'contain';
+            previewArea.appendChild(image);
+            return;
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.src = source;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.background = '#fff';
+        previewArea.appendChild(iframe);
+    },
+
+    async handleImageUpload(input) {
+        const file = input?.files?.[0];
+        if (!file) return;
+
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const screenshotInput = document.querySelector('input[name="screenshot"]');
+
+        if (!screenshotInput) {
+            alert('이미지 입력 필드를 찾지 못했습니다.');
+            input.value = '';
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            alert('이미지 파일만 업로드할 수 있습니다.');
+            input.value = '';
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = '선택된 파일 없음';
+            }
+            return;
+        }
+
+        try {
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = `${file.name} 처리 중...`;
+            }
+
+            const preparedDataUrl = await this.prepareUploadedImage(file);
+            screenshotInput.value = preparedDataUrl;
+            this.updateImagePreview(preparedDataUrl);
+
+            if (fileNameDisplay) {
+                const sizeKb = Math.round(file.size / 1024);
+                fileNameDisplay.textContent = `${file.name} (${sizeKb} KB)`;
+            }
+        } catch (err) {
+            console.error('[App] Image upload handling failed:', err);
+            alert('이미지 처리 중 오류가 발생했습니다.');
+
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = '선택된 파일 없음';
+            }
+        } finally {
+            input.value = '';
+        }
+    },
+
     async deleteDefect(id) {
         if (this.state.currentRole !== '관리자') {
             alert('삭제 권한이 없습니다. 관리자에게 문의하세요.');
