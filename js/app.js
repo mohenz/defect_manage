@@ -2411,7 +2411,7 @@ window.App = {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                         <div class="form-group">
-                            <label>등록자 (로그인 사용자)</label>
+                            <label>등록자</label>
                             <input type="text" value="${this.sanitize(resolvedCreator)}" readonly>
                             <input type="hidden" name="creator" value="${this.sanitize(resolvedCreator)}">
                         </div>
@@ -2620,7 +2620,7 @@ window.App = {
                     </div>
 
                     <div class="form-group">
-                        <label>👤 등록자 (로그인 사용자)</label>
+                        <label>👤 등록자</label>
                         <input type="text" value="${this.sanitize(currentUserName)}" readonly>
                         <input type="hidden" name="creator" value="${this.sanitize(currentUserName)}">
                     </div>
