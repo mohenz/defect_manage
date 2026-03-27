@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/test_page",
+      "destination": "/test_view/test_view.html"
+    },
+    {
+      "source": "/test_page/",
+      "destination": "/test_view/test_view.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
