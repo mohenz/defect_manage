@@ -2419,6 +2419,11 @@ window.App = {
             }
         }
 
+        if (isNewDefect) {
+            item.severity = item.severity || 'Minor';
+            item.priority = item.priority || 'Medium';
+        }
+
         const screenshotSource = item.screenshot || '';
         const usesTransientScreenshot = screenshotSource.startsWith('data:image');
         this.state.transientScreenshotData = usesTransientScreenshot ? screenshotSource : '';
@@ -2664,7 +2669,7 @@ window.App = {
 
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
-                <h1>📱 모바일 간편 결함 등록</h1>
+                <h1>📱 모바일 결함 등록</h1>
                 <p class="subtitle">모바일웹 환경에서 필요한 최소 정보만 빠르게 등록합니다.</p>
             </div>
 
@@ -2676,7 +2681,7 @@ window.App = {
                     </div>
 
                     <div class="form-group">
-                        <label>📍 결함 발생 화면 (필수)</label>
+                        <label>📍 결함 발생 화면</label>
                         <select name="screen_path" required>
                             <option value="" selected>선택하세요</option>
                             ${mobileScreenOptions.map(code => `
