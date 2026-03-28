@@ -2672,13 +2672,14 @@ window.App = {
         }
 
         this.state.transientScreenshotData = '';
-        const selectedScreenPath = '';
+        const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
+        const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
         const mobileScreenOptions = this.getMobileScreenPathOptions(selectedScreenPath);
         const envInfo = item.env_info || `Mobile Quick Entry | UA: ${navigator.userAgent}`;
 
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
-                <h1>📱 모바일 결함 등록</h1>
+                <h1>모바일 결함 등록</h1>
                 <p class="subtitle">모바일웹 환경에서 필요한 최소 정보만 빠르게 등록합니다.</p>
             </div>
 
@@ -2691,12 +2692,24 @@ window.App = {
 
                     <div class="form-group">
                         <label>📍 결함 발생 화면</label>
-                        <select name="screen_path" required>
-                            <option value="" selected>선택하세요</option>
+                        <select name="screen_path" onchange="App.updateScreenPathPreview(this.value)" required>
+                            <option value="" ${selectedScreenPath ? '' : 'selected'}>선택하세요</option>
                             ${mobileScreenOptions.map(code => `
                                 <option value="${this.sanitize(code.code_value)}" ${selectedScreenPath === code.code_value ? 'selected' : ''}>${this.sanitize(code.code_name)}</option>
                             `).join('')}
                         </select>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 화면 목록에서 선택하면 메뉴명과 화면명이 자동 입력됩니다. 자동 입력 후 직접 수정도 가능합니다.</p>
+                    </div>
+
+                    <div class="mobile-quick-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>메뉴명</label>
+                            <input type="text" id="menuNamePreview" name="menu_name" value="${this.sanitize(parsedScreenPath.menuName || item.menu_name || '')}" placeholder="직접 입력하거나 화면 선택 후 자동 입력">
+                        </div>
+                        <div class="form-group">
+                            <label>화면명</label>
+                            <input type="text" id="screenNamePreview" name="screen_name" value="${this.sanitize(parsedScreenPath.screenName || item.screen_name || '')}" placeholder="직접 입력하거나 화면 선택 후 자동 입력">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -2744,7 +2757,7 @@ window.App = {
 
                     <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
                         <button type="button" class="btn" style="background: rgba(255,255,255,0.05)" onclick="App.closeModal()">취소</button>
-                        <button type="submit" class="btn btn-primary">✅ 결함 등록</button>
+                        <button type="submit" class="btn btn-primary">결함 등록</button>
                     </div>
                 </form>
             </div>
