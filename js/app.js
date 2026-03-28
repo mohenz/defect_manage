@@ -316,7 +316,8 @@ window.App = {
         selectedDefect: null,
         commonCodes: [],
         settingsTab: 'test-types',
-        returnTo: null
+        returnTo: null,
+        sessionRestoreComplete: false
     },
 
     createSessionSnapshot(user) {
@@ -423,6 +424,18 @@ window.App = {
         return false;
     },
 
+    handleIncomingDefectData() {
+        if (!this.state.sessionRestoreComplete) {
+            return;
+        }
+
+        if (this.state.isLoggedIn) {
+            this.showRegisterModal();
+        } else {
+            this.requireLogin('register');
+        }
+    },
+
     async init() {
         console.log("[App] 1. Initializing...");
         try {
@@ -430,6 +443,7 @@ window.App = {
             this.initializeRuntimeContext();
             this.bindEvents();
             await this.restoreSavedSession();
+            this.state.sessionRestoreComplete = true;
 
             // Load Common Codes
             try {
@@ -555,12 +569,7 @@ window.App = {
 
             this.state.pendingDefectData = event.data.data || null;
             console.log("[App] Received defect data via postMessage. Screenshot status:", !!this.state.pendingDefectData?.screenshot);
-
-            if (this.state.isLoggedIn) {
-                this.showRegisterModal();
-            } else {
-                this.requireLogin('register');
-            }
+            this.handleIncomingDefectData();
         });
 
         document.addEventListener('click', (event) => {
