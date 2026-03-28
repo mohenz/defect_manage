@@ -188,8 +188,20 @@
     </div>
     <div class="report-tooltip">발견한 결함 등록하기</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@2.0.2/dist/html2canvas-pro.min.js"></script>
     <script>
+        function getHtml2CanvasLib() {
+            if (typeof window.html2canvas === 'function') {
+                return window.html2canvas;
+            }
+
+            if (window.html2canvas && typeof window.html2canvas.default === 'function') {
+                return window.html2canvas.default;
+            }
+
+            return null;
+        }
+
         async function waitForCaptureAssets(timeoutMs = 1500) {
             const fontReady = document.fonts && document.fonts.ready
                 ? document.fonts.ready.catch(() => undefined)
@@ -291,6 +303,11 @@
 
         async function captureCurrentScreen() {
             await waitForCaptureAssets();
+            const html2canvasLib = getHtml2CanvasLib();
+
+            if (!html2canvasLib) {
+                throw new Error('html2canvas-pro is not loaded.');
+            }
 
             const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
             const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
@@ -300,7 +317,7 @@
 
             console.log("[TestBench] Capture config:", { width, height, scale, captureX, captureY });
 
-            const canvas = await html2canvas(document.documentElement, {
+            const canvas = await html2canvasLib(document.documentElement, {
                 logging: false,
                 useCORS: true,
                 allowTaint: false,
@@ -454,17 +471,17 @@
 
             let screenshot = '';
 
-            // html2canvas 라이브러리 로드 확인
-            if (typeof html2canvas !== 'undefined') {
+            // html2canvas-pro 라이브러리 로드 확인
+            if (getHtml2CanvasLib()) {
                 try {
-                    console.log("[TestBench] Running html2canvas...");
+                    console.log("[TestBench] Running html2canvas-pro...");
                     screenshot = await captureCurrentScreen();
                     console.log("[TestBench] Screen captured successfully. Length:", screenshot.length);
                 } catch (err) {
                     console.error("[TestBench] Capture failed:", err);
                 }
             } else {
-                console.error("[TestBench] html2canvas library is not loaded.");
+                console.error("[TestBench] html2canvas-pro library is not loaded.");
             }
 
             try {

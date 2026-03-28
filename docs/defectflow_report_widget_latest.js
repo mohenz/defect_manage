@@ -1,20 +1,43 @@
 (function () {
     const DEFECTFLOW_URL = "https://mohenz.github.io/defect_manage/";
-    const HTML2CANVAS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    const HTML2CANVAS_CDN = "https://cdn.jsdelivr.net/npm/html2canvas-pro@2.0.2/dist/html2canvas-pro.min.js";
+    // html2canvas-pro로 교체하더라도 실제 운영 페이지의 cross-origin 자산 이슈는
+    // 라이브러리만으로 해결되지 않으므로 same-origin 치환 보정은 그대로 유지한다.
     const SAME_ORIGIN_REWRITE_HOSTS = new Set([
         "cos.emarteveryday.co.kr",
         "cos-a.emarteveryday.co.kr"
     ]);
 
+    function resolveHtml2Canvas() {
+        if (typeof window.html2canvas === "function") {
+            return window.html2canvas;
+        }
+
+        if (window.html2canvas && typeof window.html2canvas.default === "function") {
+            return window.html2canvas.default;
+        }
+
+        return null;
+    }
+
     function loadHtml2Canvas() {
-        if (typeof window.html2canvas !== "undefined") {
-            return Promise.resolve(window.html2canvas);
+        const existingLib = resolveHtml2Canvas();
+        if (existingLib) {
+            return Promise.resolve(existingLib);
         }
 
         return new Promise((resolve, reject) => {
             const existing = document.querySelector('script[data-defectflow-html2canvas="true"]');
             if (existing) {
-                existing.addEventListener("load", () => resolve(window.html2canvas), { once: true });
+                existing.addEventListener("load", () => {
+                    const loadedLib = resolveHtml2Canvas();
+                    if (loadedLib) {
+                        resolve(loadedLib);
+                        return;
+                    }
+
+                    reject(new Error("html2canvas-pro-missing-global"));
+                }, { once: true });
                 existing.addEventListener("error", () => reject(new Error("html2canvas-load-failed")), { once: true });
                 return;
             }
@@ -22,8 +45,17 @@
             const script = document.createElement("script");
             script.src = HTML2CANVAS_CDN;
             script.async = true;
+            script.crossOrigin = "anonymous";
             script.dataset.defectflowHtml2canvas = "true";
-            script.onload = () => resolve(window.html2canvas);
+            script.onload = () => {
+                const loadedLib = resolveHtml2Canvas();
+                if (loadedLib) {
+                    resolve(loadedLib);
+                    return;
+                }
+
+                reject(new Error("html2canvas-pro-missing-global"));
+            };
             script.onerror = () => reject(new Error("html2canvas-load-failed"));
             document.head.appendChild(script);
         });

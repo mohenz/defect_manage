@@ -32,6 +32,14 @@
   - 세션이 유효한 경우 로그인 화면을 거치지 않고 바로 등록 화면으로 진입하도록 보정
 - **수정 파일**: `js/app.js`
 
+#### 55. 캡처 엔진을 html2canvas-pro로 교체
+- **배경**: 기존 `html2canvas 1.4.1` 기반 캡처는 최신 CSS 대응 범위가 제한적이어서, 운영 페이지 특성상 필요한 캡처 정확도를 더 안정적으로 확보할 필요가 있었음
+- **변경 사항**:
+  - 최신 위젯 스크립트와 테스트 벤치의 캡처 엔진을 `html2canvas-pro 2.0.2`로 교체
+  - 전역 노출 방식 차이를 흡수하는 로더를 추가해 기존 호출 구조를 유지
+  - `same-origin` 자산 URL 치환, `useCORS: true`, `allowTaint: false` 등 기존 CORS 회피 보정 로직은 그대로 유지
+- **수정 파일**: `docs/defectflow_report_widget_latest.js`, `test_view/test_view.html`
+
 ## [2026-03-28] Chrome 확장프로그램 MVP 추가
 
 ### 🔧 기능 개선
