@@ -315,21 +315,121 @@ window.App = {
         transientScreenshotData: '',
         selectedDefect: null,
         commonCodes: [],
-        settingsTab: 'test-types'
+        settingsTab: 'test-types',
+        returnTo: null
     },
+
+    createSessionSnapshot(user) {
+        if (!user) {
+            return null;
+        }
+
+        return {
+            user_id: user.user_id ?? null,
+            name: user.name || '',
+            email: user.email || '',
+            department: user.department || '',
+            role: user.role || '테스터',
+            status: user.status || '사용'
+        };
+    },
+
+    setAuthenticatedUser(user, options = {}) {
+        const sessionUser = this.createSessionSnapshot(user);
+        if (!sessionUser) {
+            this.clearAuthenticatedUser();
+            return;
+        }
+
+        this.state.isLoggedIn = true;
+        this.state.currentUser = sessionUser;
+        this.state.currentRole = sessionUser.role;
+        document.body.classList.add('logged-in');
+
+        if (options.persist !== false) {
+            localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+        }
+    },
+
+    clearAuthenticatedUser() {
+        this.state.isLoggedIn = false;
+        this.state.currentUser = null;
+        this.state.currentRole = '테스터';
+        localStorage.removeItem('currentUser');
+        document.body.classList.remove('logged-in');
+    },
+
+    async restoreSavedSession() {
+        const savedUser = localStorage.getItem('currentUser');
+        if (!savedUser) {
+            this.clearAuthenticatedUser();
+            return false;
+        }
+
+        try {
+            const parsedUser = JSON.parse(savedUser);
+            if (!parsedUser?.email) {
+                throw new Error('Saved session is missing email.');
+            }
+
+            const freshUser = await StorageService.findUserByEmail(parsedUser.email);
+            if (!freshUser || !this.isUserActive(freshUser.status)) {
+                console.warn('[App] Saved session is no longer valid.');
+                this.clearAuthenticatedUser();
+                return false;
+            }
+
+            this.setAuthenticatedUser(freshUser);
+            return true;
+        } catch (error) {
+            console.warn('[App] Failed to restore saved session:', error);
+            this.clearAuthenticatedUser();
+            return false;
+        }
+    },
+
+    resetModalState() {
+        this.state.currentModal = null;
+        this.state.selectedDefect = null;
+        this.state.transientScreenshotData = '';
+
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+
+        const modalContent = document.getElementById('modalContent');
+        if (modalContent) {
+            modalContent.classList.remove('maximize');
+        }
+
+        const maximizeBtn = document.getElementById('maximizeBtn');
+        if (maximizeBtn) {
+            maximizeBtn.className = 'fas fa-expand-alt modal-control-btn';
+        }
+
+        document.body.style.overflow = '';
+    },
+
+    requireLogin(targetView = 'dashboard') {
+        if (this.state.isLoggedIn) {
+            return true;
+        }
+
+        this.state.returnTo = targetView;
+        this.resetModalState();
+        this.state.currentView = 'login';
+        this.render();
+        return false;
+    },
+
     async init() {
         console.log("[App] 1. Initializing...");
         try {
             console.log("[App] 2. StorageService Init..."); StorageService.init();
             this.initializeRuntimeContext();
             this.bindEvents();
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                this.state.currentUser = JSON.parse(savedUser);
-                this.state.isLoggedIn = true;
-                this.state.currentRole = this.state.currentUser.role;
-                document.body.classList.add('logged-in');
-            }
+            await this.restoreSavedSession();
 
             // Load Common Codes
             try {
@@ -459,10 +559,7 @@ window.App = {
             if (this.state.isLoggedIn) {
                 this.showRegisterModal();
             } else {
-                this.state.returnTo = 'register';
-                if (this.state.currentView !== 'login') {
-                    this.navigate('login');
-                }
+                this.requireLogin('register');
             }
         });
 
@@ -497,10 +594,7 @@ window.App = {
         // Authentication Guard
         const isAuthView = ['login', 'signup', 'password-reset'].includes(view);
 
-        if (!this.state.isLoggedIn && !isAuthView) {
-            this.state.returnTo = view;
-            this.state.currentView = 'login';
-            console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
+        if (!isAuthView && !this.requireLogin(view)) {
             return;
         }
 
@@ -608,6 +702,10 @@ window.App = {
     },
 
     renderLogin(container) {
+        const registerResumeNotice = this.state.returnTo === 'register'
+            ? '<p style="margin-top: 0.75rem; font-size: 0.8125rem; color: var(--accent);">로그인 후 신규 결함 등록 화면으로 자동 복귀합니다.</p>'
+            : '';
+
         container.innerHTML = `
             <div class="login-screen animate-in">
                 <div class="login-card">
@@ -616,6 +714,7 @@ window.App = {
                     </div>
                     <h2>환영합니다</h2>
                     <p class="subtitle">시스템 접속을 위해 로그인해 주세요.</p>
+                    ${registerResumeNotice}
                     
                     <form id="loginForm" style="margin-top: 2rem;">
                         <div class="form-group">
@@ -653,10 +752,7 @@ window.App = {
                     // Check Password (Client-side)
                     const isMatch = bcrypt.compareSync(password, user.password);
                     if (isMatch) {
-                        this.state.isLoggedIn = true;
-                        this.state.currentUser = user;
-                        this.state.currentRole = user.role;
-                        localStorage.setItem('currentUser', JSON.stringify(user));
+                        this.setAuthenticatedUser(user);
 
                         alert(`${user.name}님, 환영합니다!`);
                         const targetView = this.state.returnTo || 'dashboard';
@@ -864,10 +960,7 @@ window.App = {
 
     handleLogout() {
         if (confirm('로그아웃 하시겠습니까?')) {
-            this.state.isLoggedIn = false;
-            this.state.currentUser = null;
-            this.state.currentRole = '테스터';
-            localStorage.removeItem('currentUser');
+            this.clearAuthenticatedUser();
             // Clear hash and reload for a completely clean state
             window.location.hash = 'login';
             window.location.reload();
@@ -2735,6 +2828,12 @@ window.App = {
     },
 
     async handleFormSubmit(id) {
+        if (!this.state.isLoggedIn) {
+            alert('로그인이 필요합니다.');
+            this.requireLogin('register');
+            return;
+        }
+
         const form = document.getElementById('defectForm');
         const submitButton = form.querySelector('button[type="submit"]');
         const payload = this.buildDefectPayload(form, id);
@@ -2781,6 +2880,10 @@ window.App = {
     },
 
     showRegisterModal() {
+        if (!this.requireLogin('register')) {
+            return;
+        }
+
         this.state.currentModal = 'register';
         const modalBody = document.getElementById('modalBody');
         if (this.state.isMobileQuickMode) {
@@ -2836,13 +2939,7 @@ window.App = {
             window.close();
             return;
         }
-        this.state.currentModal = null;
-        this.state.selectedDefect = null;
-        this.state.transientScreenshotData = '';
-        document.getElementById('modalOverlay').classList.remove('active');
-        document.getElementById('modalContent').classList.remove('maximize');
-        document.getElementById('maximizeBtn').className = 'fas fa-expand-alt modal-control-btn';
-        document.body.style.overflow = '';
+        this.resetModalState();
     },
 
     toggleMaximize() {
