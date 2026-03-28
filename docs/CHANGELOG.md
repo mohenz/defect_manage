@@ -9,6 +9,13 @@
 
 ### 🔧 버그 수정
 
+#### 57. 모바일 공통 위젯 실행 버튼 아이콘을 PC와 동일한 fa-bug로 통일
+- **배경**: 모바일웹 `신고하기` 버튼은 이모지 아이콘을 사용하고 있어 PC 버전의 `Font Awesome fa-bug`와 형태 통일성이 맞지 않았음
+- **변경 사항**:
+  - 모바일 공통 위젯 실행 버튼 아이콘을 `🐞` 이모지에서 `Font Awesome 6.4.0`의 실제 `fa-bug`로 교체
+  - 외부 모바일 페이지에서도 동일한 아이콘이 보이도록 위젯이 `Font Awesome 6.4.0` 스타일시트를 자동 로드하도록 보정
+- **수정 파일**: `docs/defectflow_mobile_report_widget.js`
+
 #### 52. 신규 결함 등록 초기 진입 시 로그인 검증 강화
 - **배경**: Chrome 확장프로그램과 `standalone/mobile` 등록 화면에서 저장된 브라우저 세션 정보만으로 로그인 여부가 판단되거나, 등록 모달 자체가 인증 없이 열릴 수 있는 여지가 있었음
 - **변경 사항**:
@@ -39,6 +46,14 @@
   - 전역 노출 방식 차이를 흡수하는 로더를 추가해 기존 호출 구조를 유지
   - `same-origin` 자산 URL 치환, `useCORS: true`, `allowTaint: false` 등 기존 CORS 회피 보정 로직은 그대로 유지
 - **수정 파일**: `docs/defectflow_report_widget_latest.js`, `test_view/test_view.html`
+
+#### 56. Chrome extension 전용 bug 아이콘 추가
+- **배경**: DefectFlow Reporter extension이 기본 아이콘 없이 표시되어 브라우저 툴바에서 식별성이 떨어졌음
+- **변경 사항**:
+  - PC 버전과 형태를 맞춘 `Font Awesome fa-bug` 기반 원형 배지 PNG 아이콘 세트(`16/32/48/128`) 생성
+  - extension manifest에 공통 아이콘과 action 아이콘 연결
+  - unpacked extension 새로고침 시 바로 반영되도록 README 안내 추가
+- **수정 파일**: `extension/defectflow-reporter/manifest.json`, `extension/defectflow-reporter/README.md`, `extension/defectflow-reporter/icons/icon-16.png`, `extension/defectflow-reporter/icons/icon-32.png`, `extension/defectflow-reporter/icons/icon-48.png`, `extension/defectflow-reporter/icons/icon-128.png`
 
 ## [2026-03-28] Chrome 확장프로그램 MVP 추가
 

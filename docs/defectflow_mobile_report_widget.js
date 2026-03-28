@@ -8,6 +8,8 @@
   window.__DEFECTFLOW_MOBILE_WIDGET_INITIALIZED__ = true;
 
   const DEFAULT_REGISTER_URL = 'https://mohenz.github.io/defect_manage/?mode=mobile#register';
+  const FONT_AWESOME_CSS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+  const FONT_AWESOME_LINK_ID = '__defectflow-mobile-fontawesome__';
   const DEFAULTS = {
     buttonLabel: '신고하기',
     registerUrl: DEFAULT_REGISTER_URL,
@@ -98,16 +100,36 @@
     window.location.href = config.registerUrl;
   }
 
+  function ensureFontAwesome() {
+    if (document.getElementById(FONT_AWESOME_LINK_ID)) {
+      return;
+    }
+
+    const existingLink = document.querySelector(`link[href="${FONT_AWESOME_CSS_URL}"]`);
+    if (existingLink) {
+      existingLink.id = existingLink.id || FONT_AWESOME_LINK_ID;
+      return;
+    }
+
+    const link = document.createElement('link');
+    link.id = FONT_AWESOME_LINK_ID;
+    link.rel = 'stylesheet';
+    link.href = FONT_AWESOME_CSS_URL;
+    (document.head || document.documentElement).appendChild(link);
+  }
+
   function ensureButton(config) {
     if (document.getElementById('__defectflow-mobile-report-btn__')) {
       return;
     }
 
+    ensureFontAwesome();
+
     const button = document.createElement('button');
     button.id = '__defectflow-mobile-report-btn__';
     button.type = 'button';
     button.setAttribute('aria-label', config.buttonLabel);
-    button.innerHTML = '<span class="df-mobile-report-icon" aria-hidden="true">🐞</span>';
+    button.innerHTML = '<i class="fas fa-bug df-mobile-report-icon" aria-hidden="true"></i>';
 
     const style = document.createElement('style');
     style.textContent = `
@@ -143,9 +165,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 100%;
-        height: 100%;
+        font-size: 30px;
         line-height: 1;
+        pointer-events: none;
       }
     `;
 
