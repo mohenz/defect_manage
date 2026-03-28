@@ -197,7 +197,229 @@
         element.setAttribute(name, value);
     }
 
-    async function prepareAssetsForCapture() {
+    function sanitizeCaptureText(value) {
+        return (value || "").replace(/\s+/g, " ").trim();
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius) {
+        const safeRadius = Math.max(0, Math.min(radius || 0, width / 2, height / 2));
+        context.beginPath();
+        context.moveTo(x + safeRadius, y);
+        context.lineTo(x + width - safeRadius, y);
+        context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+        context.lineTo(x + width, y + height - safeRadius);
+        context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+        context.lineTo(x + safeRadius, y + height);
+        context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+        context.lineTo(x, y + safeRadius);
+        context.quadraticCurveTo(x, y, x + safeRadius, y);
+        context.closePath();
+        context.fill();
+    }
+
+    function drawWrappedCanvasText(context, text, left, top, maxWidth, lineHeight) {
+        const words = String(text || "").split(/\s+/).filter(Boolean);
+        if (!words.length) {
+            return;
+        }
+
+        let line = "";
+        let currentTop = top;
+
+        for (const word of words) {
+            const candidate = line ? `${line} ${word}` : word;
+            if (line && context.measureText(candidate).width > maxWidth) {
+                context.fillText(line, left, currentTop);
+                line = word;
+                currentTop += lineHeight;
+            } else {
+                line = candidate;
+            }
+        }
+
+        if (line) {
+            context.fillText(line, left, currentTop);
+        }
+    }
+
+    function createProductInfoCanvasOverlay(captureX, captureY, width, height) {
+        const pixelRatio = 1;
+        const overlay = document.createElement("canvas");
+        const context = overlay.getContext("2d");
+        const restorers = [];
+
+        overlay.width = Math.max(1, Math.round(width * pixelRatio));
+        overlay.height = Math.max(1, Math.round(height * pixelRatio));
+        overlay.style.position = "absolute";
+        overlay.style.left = `${captureX}px`;
+        overlay.style.top = `${captureY}px`;
+        overlay.style.width = `${width}px`;
+        overlay.style.height = `${height}px`;
+        overlay.style.pointerEvents = "none";
+        overlay.style.zIndex = "2147483647";
+
+        document.body.appendChild(overlay);
+        restorers.push(() => overlay.remove());
+
+        if (!context) {
+            return () => {
+                for (let index = restorers.length - 1; index >= 0; index -= 1) {
+                    restorers[index]();
+                }
+            };
+        }
+
+        context.scale(pixelRatio, pixelRatio);
+        context.textBaseline = "top";
+
+        function hideOriginalNode(node) {
+            if (!node) {
+                return;
+            }
+
+            const originalOpacity = node.style.opacity;
+            restorers.push(() => {
+                node.style.opacity = originalOpacity;
+            });
+            node.style.opacity = "0";
+        }
+
+        function drawNodeText(node, text, options) {
+            if (!node) {
+                return;
+            }
+
+            const safeText = sanitizeCaptureText(text);
+            if (!safeText) {
+                return;
+            }
+
+            const rect = node.getBoundingClientRect();
+            if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+                return;
+            }
+
+            const style = getComputedStyle(node);
+            const fontSize = options.fontSize || style.fontSize || "16px";
+            const fontWeight = options.fontWeight || style.fontWeight || "400";
+            const lineHeight = parseFloat(options.lineHeight || style.lineHeight || fontSize) || 16;
+            const paddingLeft = options.paddingLeft || 0;
+            const paddingTop = options.paddingTop || 0;
+            const drawLeft = rect.left + paddingLeft;
+            const drawTop = rect.top + paddingTop;
+            const drawWidth = Math.max(rect.width - (paddingLeft * 2), 1);
+
+            if (options.background) {
+                context.fillStyle = options.background;
+                drawRoundedRect(context, rect.left, rect.top, rect.width, rect.height, options.radius || 4);
+            }
+
+            context.fillStyle = options.color || style.color || "#222222";
+            context.font = `${fontWeight} ${fontSize} ${style.fontFamily || "sans-serif"}`;
+
+            if (options.whiteSpace === "nowrap") {
+                context.fillText(safeText, drawLeft, drawTop);
+                return;
+            }
+
+            drawWrappedCanvasText(context, safeText, drawLeft, drawTop, drawWidth, lineHeight);
+        }
+
+        for (const info of Array.from(document.querySelectorAll(".product-item .prod-info"))) {
+            const infoRect = info.getBoundingClientRect();
+            if (!infoRect.width || !infoRect.height || infoRect.bottom <= 0 || infoRect.top >= window.innerHeight) {
+                continue;
+            }
+
+            const badgeNode = info.querySelector(".prod-name .badge-type");
+            const nameNode = info.querySelector(".prod-name .link-name");
+            const unitNode = info.querySelector(".prod-price-info .unit-per-price");
+            const priceNode = info.querySelector(".main-price .price");
+
+            const badgeText = sanitizeCaptureText(badgeNode ? badgeNode.textContent : "");
+            let nameText = sanitizeCaptureText(nameNode ? nameNode.textContent : "");
+            const unitText = sanitizeCaptureText(unitNode ? unitNode.textContent : "");
+            const priceText = sanitizeCaptureText(priceNode ? priceNode.textContent : "");
+
+            if (badgeText && nameText.startsWith(badgeText)) {
+                nameText = nameText.slice(badgeText.length).trim();
+            }
+
+            hideOriginalNode(badgeNode);
+            hideOriginalNode(nameNode);
+            hideOriginalNode(unitNode);
+            hideOriginalNode(priceNode);
+
+            drawNodeText(badgeNode, badgeText, {
+                background: "#f3e1df",
+                color: "#4d2424",
+                fontSize: "13px",
+                fontWeight: "700",
+                lineHeight: "18",
+                paddingLeft: 8,
+                paddingTop: 2,
+                radius: 4,
+                whiteSpace: "nowrap"
+            });
+            drawNodeText(nameNode, nameText, {
+                color: "#222222",
+                fontSize: "18px",
+                fontWeight: "600",
+                lineHeight: "25"
+            });
+            drawNodeText(unitNode, unitText, {
+                color: "#777777",
+                fontSize: "13px",
+                fontWeight: "400",
+                lineHeight: "19",
+                whiteSpace: "nowrap"
+            });
+            drawNodeText(priceNode, priceText, {
+                color: "#111827",
+                fontSize: "21px",
+                fontWeight: "800",
+                lineHeight: "25",
+                whiteSpace: "nowrap"
+            });
+        }
+
+        return () => {
+            for (let index = restorers.length - 1; index >= 0; index -= 1) {
+                restorers[index]();
+            }
+        };
+    }
+
+    function suppressOffscreenCaptureNoise() {
+        const restorers = [];
+        const noisySelectors = [
+            ".category-tabs-wrap",
+            ".section-title-box",
+            ".pagination-controls",
+            ".line-banner"
+        ];
+
+        for (const element of Array.from(document.querySelectorAll(noisySelectors.join(", ")))) {
+            const rect = element.getBoundingClientRect();
+            if (rect.bottom > 0 && rect.top < window.innerHeight) {
+                continue;
+            }
+
+            const originalVisibility = element.style.visibility;
+            restorers.push(() => {
+                element.style.visibility = originalVisibility;
+            });
+            element.style.visibility = "hidden";
+        }
+
+        return () => {
+            for (let index = restorers.length - 1; index >= 0; index -= 1) {
+                restorers[index]();
+            }
+        };
+    }
+
+    async function prepareAssetsForCapture(captureX, captureY, width, height) {
         const restorers = [];
         const imageLoadPromises = [];
 
@@ -267,6 +489,9 @@
             new Promise((resolve) => setTimeout(resolve, 2500))
         ]);
 
+        restorers.push(suppressOffscreenCaptureNoise());
+        restorers.push(createProductInfoCanvasOverlay(captureX, captureY, width, height));
+
         return () => {
             for (let index = restorers.length - 1; index >= 0; index -= 1) {
                 restorers[index]();
@@ -278,16 +503,18 @@
         const html2canvas = await loadHtml2Canvas();
         await waitForCaptureAssets(1500);
 
-        const restoreAssets = await prepareAssetsForCapture();
+        const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
+        const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
+        const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        const height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const scale = getCaptureScale(width, height);
+
+        const restoreAssets = await prepareAssetsForCapture(captureX, captureY, width, height);
 
         try {
-            await waitForCaptureAssets(1200);
-
-            const captureX = Math.max(window.scrollX || window.pageXOffset || 0, 0);
-            const captureY = Math.max(window.scrollY || window.pageYOffset || 0, 0);
-            const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-            const height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-            const scale = getCaptureScale(width, height);
+            await new Promise((resolve) => {
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+            });
 
             const canvas = await html2canvas(document.documentElement, {
                 logging: false,
