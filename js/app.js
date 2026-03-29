@@ -254,32 +254,20 @@ window.App = {
         popup.focus?.();
     },
 
-    openExtensionGuide(event = null) {
-        if (event) {
-            event.preventDefault?.();
-            event.stopPropagation?.();
-        }
-
+    openExtensionGuide() {
         if (!this.requireLogin('extension-guide')) {
             return;
         }
 
-        if (this.state.currentModal) {
-            this.resetModalState();
-        }
-
-        const moveToGuide = () => {
-            this.state.currentView = 'extension-guide';
-            window.location.hash = 'extension-guide';
-            this.render();
-        };
-
-        if (typeof window.requestAnimationFrame === 'function') {
-            window.requestAnimationFrame(moveToGuide);
+        const modalBody = document.getElementById('modalBody');
+        if (this.state.currentModal && modalBody) {
+            this.state.currentModal = 'extension-guide';
+            this.renderExtensionGuide(modalBody, { insideModal: true });
+            this.openModal();
             return;
         }
 
-        setTimeout(moveToGuide, 0);
+        this.navigate('extension-guide');
     },
 
     updateScreenPathPreview(screenPath = '') {
@@ -1042,9 +1030,13 @@ window.App = {
         };
     },
 
-    renderExtensionGuide(container) {
+    renderExtensionGuide(container, options = {}) {
         const extensionZipUrl = this.sanitize(this.getExtensionZipUrl());
-        const backButton = `<button type="button" class="btn" style="background: rgba(255,255,255,0.05);" onclick="App.navigate('register')">
+        const backButton = options.insideModal
+            ? `<button type="button" class="btn" style="background: rgba(255,255,255,0.05);" onclick="App.showRegisterModal()">
+                <i class="fas fa-arrow-left"></i> 등록 화면으로 돌아가기
+           </button>`
+            : `<button type="button" class="btn" style="background: rgba(255,255,255,0.05);" onclick="App.navigate('register')">
                 <i class="fas fa-arrow-left"></i> 등록 화면으로 돌아가기
            </button>`;
 
@@ -2859,10 +2851,10 @@ window.App = {
                         <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
                             <div>
                                 <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-                                    <i class="fas fa-puzzle-piece"></i> Chrome 확장프로그램으로 깨끗한 품질의 화면 캡쳐로 결함 등록이 가능합니다. 설치 아낸를 확인해주세요.
+                                    <i class="fas fa-puzzle-piece"></i> Chrome 확장프로그램으로 깨끗한 품질의 화면 캡쳐로 결함 등록이 가능합니다. 설치 안내를 확인해주세요.
                                 </p>
                             </div>
-                            <button type="button" class="btn" style="background: white; border: 1px solid var(--border);" onclick="App.openExtensionGuide(event)">
+                            <button type="button" class="btn" style="background: white; border: 1px solid var(--border);" onclick="App.openExtensionGuide()">
                                 <i class="fas fa-download"></i> 설치하기
                             </button>
                         </div>
