@@ -254,9 +254,32 @@ window.App = {
         popup.focus?.();
     },
 
-    openExtensionGuide() {
-        this.resetModalState();
-        this.navigate('extension-guide');
+    openExtensionGuide(event = null) {
+        if (event) {
+            event.preventDefault?.();
+            event.stopPropagation?.();
+        }
+
+        if (!this.requireLogin('extension-guide')) {
+            return;
+        }
+
+        if (this.state.currentModal) {
+            this.resetModalState();
+        }
+
+        const moveToGuide = () => {
+            this.state.currentView = 'extension-guide';
+            window.location.hash = 'extension-guide';
+            this.render();
+        };
+
+        if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(moveToGuide);
+            return;
+        }
+
+        setTimeout(moveToGuide, 0);
     },
 
     updateScreenPathPreview(screenPath = '') {
@@ -2826,28 +2849,25 @@ window.App = {
                     </div>
                     ` : ''}
 
-                    ${!id ? `
-                    <div style="margin-top: 2rem; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                            <div>
-                                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">
-                                    <i class="fas fa-puzzle-piece"></i> Chrome 확장프로그램으로 더 빠르게 등록할 수 있습니다.
-                                </div>
-                                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-                                    현재 보고 있는 화면 캡처와 URL 전달을 자동화하려면 설치 안내를 확인해 주세요.
-                                </p>
-                            </div>
-                            <a href="#" class="btn" style="background: white; border: 1px solid var(--border);" onclick="App.openExtensionGuide(); return false;">
-                                <i class="fas fa-download"></i> 설치하기
-                            </a>
-                        </div>
-                    </div>
-                    ` : ''}
-
                     <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
                         <button type="button" class="btn" style="background: rgba(255,255,255,0.05)" onclick="App.closeModal()">취소</button>
                         <button type="submit" class="btn btn-primary">${id ? '수정 완료' : '결함 등록'}</button>
                     </div>
+
+                    ${!id ? `
+                    <div style="margin-top: 2rem; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <div>
+                                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
+                                    <i class="fas fa-puzzle-piece"></i> Chrome 확장프로그램으로 깨끗한 품질의 화면 캡쳐로 결함 등록이 가능합니다. 설치 아낸를 확인해주세요.
+                                </p>
+                            </div>
+                            <button type="button" class="btn" style="background: white; border: 1px solid var(--border);" onclick="App.openExtensionGuide(event)">
+                                <i class="fas fa-download"></i> 설치하기
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
                 </form>
             </div>
         `;
