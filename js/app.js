@@ -166,6 +166,40 @@ window.App = {
         return baseUrl.toString();
     },
 
+    getExtensionZipUrl() {
+        return new URL('./extension/extension.zip', window.location.href).toString();
+    },
+
+    getCenteredPopupFeatures(width, height, extraFeatures = []) {
+        const screenLeft = typeof window.screenLeft === 'number' ? window.screenLeft : (window.screenX || 0);
+        const screenTop = typeof window.screenTop === 'number' ? window.screenTop : (window.screenY || 0);
+        const viewportWidth = window.outerWidth || document.documentElement.clientWidth || window.screen?.width || width;
+        const viewportHeight = window.outerHeight || document.documentElement.clientHeight || window.screen?.height || height;
+        const left = Math.max(0, Math.round(screenLeft + ((viewportWidth - width) / 2)));
+        const top = Math.max(0, Math.round(screenTop + ((viewportHeight - height) / 2)));
+
+        return [
+            `popup=yes`,
+            `width=${width}`,
+            `height=${height}`,
+            `left=${left}`,
+            `top=${top}`,
+            'resizable=yes',
+            'scrollbars=yes',
+            ...extraFeatures
+        ].join(',');
+    },
+
+    getMobileQuickPopupSize() {
+        const availableWidth = window.screen?.availWidth || window.innerWidth || 540;
+        const availableHeight = window.screen?.availHeight || window.innerHeight || 900;
+
+        return {
+            width: availableWidth >= 620 ? 540 : Math.max(360, availableWidth - 32),
+            height: availableHeight >= 980 ? 920 : Math.max(640, availableHeight - 48)
+        };
+    },
+
     buildPendingDefectSeed(source = {}) {
         const parsedScreenPath = this.parseScreenPath(source.screen_path || this.buildScreenPath(source.menu_name, source.screen_name));
 
@@ -205,7 +239,24 @@ window.App = {
             console.error('[App] Failed to save mobile quick seed:', error);
         }
 
-        window.open(this.getRegisterUrl('mobile'), '_blank', 'noopener,noreferrer');
+        const popupSize = this.getMobileQuickPopupSize();
+        const popup = window.open(
+            this.getRegisterUrl('mobile'),
+            'DefectFlowMobileQuickRegister',
+            this.getCenteredPopupFeatures(popupSize.width, popupSize.height)
+        );
+
+        if (!popup) {
+            alert('팝업 차단을 해제해주세요.');
+            return;
+        }
+
+        popup.focus?.();
+    },
+
+    openExtensionGuide() {
+        this.resetModalState();
+        this.navigate('extension-guide');
     },
 
     updateScreenPathPreview(screenPath = '') {
@@ -663,6 +714,7 @@ window.App = {
             case 'assignee-status': this.renderAssigneeStatusScreen(root); break;
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
+            case 'extension-guide': this.renderExtensionGuide(root); break;
             case 'login': this.renderLogin(root); break;
             case 'signup': this.renderSignup(root); break;
             case 'password-reset': this.renderPasswordReset(root); break;
@@ -965,6 +1017,91 @@ window.App = {
                 alert('비밀번호 변경 중 오류가 발생했습니다.');
             }
         };
+    },
+
+    renderExtensionGuide(container) {
+        const extensionZipUrl = this.sanitize(this.getExtensionZipUrl());
+        const backButton = `<button type="button" class="btn" style="background: rgba(255,255,255,0.05);" onclick="App.navigate('register')">
+                <i class="fas fa-arrow-left"></i> 등록 화면으로 돌아가기
+           </button>`;
+
+        container.innerHTML = `
+            <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <h1>Chrome 확장프로그램 설치 안내</h1>
+                    <p class="subtitle">DefectFlow Reporter 확장프로그램으로 현재 보고 있는 화면을 바로 캡처하고 결함 등록까지 연결할 수 있습니다.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    ${backButton}
+                    <a class="btn btn-primary" href="${extensionZipUrl}" download="extension.zip">
+                        <i class="fas fa-download"></i> extension.zip 다운로드
+                    </a>
+                </div>
+            </div>
+
+            <div class="form-container animate-in" style="max-width: 1080px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div style="padding: 1.25rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                        <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;"><i class="fas fa-camera"></i> 자동 화면 캡처</div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">Chrome 툴바 아이콘을 누르면 현재 보이는 탭을 즉시 캡처합니다.</p>
+                    </div>
+                    <div style="padding: 1.25rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                        <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;"><i class="fas fa-link"></i> URL 자동 전달</div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">현재 페이지 URL과 캡처 이미지를 등록 화면 오버레이에 함께 전달합니다.</p>
+                    </div>
+                    <div style="padding: 1.25rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                        <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;"><i class="fas fa-bug"></i> 빠른 결함 등록</div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">별도 복사 없이 결함 등록 폼을 바로 띄워 테스트 흐름을 단축합니다.</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; align-items: start;">
+                    <section style="padding: 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: white;">
+                        <h2 style="font-size: 1.125rem; margin-bottom: 1rem;">설치 방법</h2>
+                        <ol style="padding-left: 1.25rem; color: var(--text-secondary); line-height: 1.8;">
+                            <li><strong style="color: var(--text-primary);">extension.zip 다운로드</strong>: 우측 상단 버튼 또는 아래 다운로드 영역을 사용합니다.</li>
+                            <li><strong style="color: var(--text-primary);">압축 해제</strong>: 내려받은 zip 파일을 원하는 위치에 풉니다.</li>
+                            <li><strong style="color: var(--text-primary);">Chrome 확장 관리 열기</strong>: 주소창에 <code>chrome://extensions</code> 를 입력합니다.</li>
+                            <li><strong style="color: var(--text-primary);">개발자 모드 켜기</strong>: 우측 상단의 <code>개발자 모드</code>를 활성화합니다.</li>
+                            <li><strong style="color: var(--text-primary);">압축해제된 확장 프로그램 로드</strong>: 버튼을 클릭한 뒤 압축 해제한 <code>defectflow-reporter</code> 폴더를 선택합니다.</li>
+                            <li><strong style="color: var(--text-primary);">툴바에 고정 후 사용</strong>: Chrome 우측 상단 퍼즐 메뉴에서 <code>DefectFlow Reporter</code>를 고정하면 바로 실행할 수 있습니다.</li>
+                        </ol>
+
+                        <div style="margin-top: 1.25rem; padding: 1rem 1.1rem; border-radius: 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 0.875rem; line-height: 1.7;">
+                            현재 저장소를 이미 내려받은 경우에는 zip 없이 <code>D:\\Workspace\\defect_manage\\extension\\defectflow-reporter</code> 폴더를 바로 선택해도 됩니다.
+                        </div>
+                    </section>
+
+                    <section style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="padding: 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                            <h2 style="font-size: 1.125rem; margin-bottom: 0.75rem;">다운로드</h2>
+                            <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1rem;">팀원 배포나 수동 설치용 zip 파일입니다. 내려받은 뒤 압축을 해제해서 Chrome에 로드하면 됩니다.</p>
+                            <a class="btn btn-primary" href="${extensionZipUrl}" download="extension.zip" style="width: 100%; justify-content: center;">
+                                <i class="fas fa-file-archive"></i> extension.zip 받기
+                            </a>
+                        </div>
+
+                        <div style="padding: 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                            <h2 style="font-size: 1.125rem; margin-bottom: 0.75rem;">사용 방법</h2>
+                            <ul style="padding-left: 1.1rem; color: var(--text-secondary); line-height: 1.8;">
+                                <li>결함이 있는 웹페이지를 엽니다.</li>
+                                <li>Chrome 툴바의 <code>DefectFlow Reporter</code> 아이콘을 클릭합니다.</li>
+                                <li>현재 페이지 위에 뜨는 등록 오버레이에서 캡처 이미지와 URL 전달 여부를 확인합니다.</li>
+                                <li>내용을 보정한 뒤 바로 결함을 등록합니다.</li>
+                            </ul>
+                        </div>
+
+                        <div style="padding: 1.5rem; border: 1px solid rgba(217,119,6,0.2); border-radius: 0.75rem; background: #fffbeb;">
+                            <h2 style="font-size: 1.125rem; margin-bottom: 0.75rem; color: #92400e;">주의사항</h2>
+                            <ul style="padding-left: 1.1rem; color: #78350f; line-height: 1.8;">
+                                <li><code>chrome://</code>, <code>edge://</code>, PDF 뷰어 등 일부 특수 페이지는 캡처되지 않습니다.</li>
+                                <li>설치 후 아이콘이 보이지 않으면 <code>chrome://extensions</code>에서 새로고침 후 다시 확인합니다.</li>
+                            </ul>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        `;
     },
 
     handleLogout() {
@@ -1448,6 +1585,26 @@ window.App = {
         this.navigate('list');
     },
 
+    viewSeverityDefects(severity, status = '') {
+        this.state.listConfig.search = {
+            severity: severity || '',
+            status: status || '',
+            title: '',
+            stepsToRepro: '',
+            creator: '',
+            assignee: '',
+            assigneeUnassigned: false,
+            identificationUnassigned: false,
+            testType: '',
+            dateStart: '',
+            dateEnd: '',
+            identification: '',
+            screenPath: ''
+        };
+        this.state.listConfig.page = 1;
+        this.navigate('list');
+    },
+
     viewIdentificationDefects(identification) {
         this.state.listConfig.search = {
             severity: '',
@@ -1659,17 +1816,20 @@ window.App = {
         const stats = this.state.stats;
         // All necessary summary data is now in state.allDefectsSummary
         const defects = this.state.allDefectsSummary.filter(d => this.isTestTypeEnabled(d.test_type));
+        const severityCodes = this.getCodesByGroup('SEVERITY');
+        const statusCodes = this.getCodesByGroup('STATUS');
+        const completedStatuses = ['Resolved', 'Staging', 'Closed'];
 
         // 1. 등록자별/심각도별 통계 계산
         const creatorStats = {};
         const grandTotal = { total: 0 };
-        this.getCodesByGroup('SEVERITY').forEach(c => grandTotal[c.code_value] = 0);
+        severityCodes.forEach(c => grandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const creator = d.creator || '미지정';
             if (!creatorStats[creator]) {
                 creatorStats[creator] = { total: 0 };
-                this.getCodesByGroup('SEVERITY').forEach(c => creatorStats[creator][c.code_value] = 0);
+                severityCodes.forEach(c => creatorStats[creator][c.code_value] = 0);
             }
             creatorStats[creator].total++;
             grandTotal.total++;
@@ -1680,36 +1840,65 @@ window.App = {
         });
         const sortedCreators = Object.entries(creatorStats).sort((a, b) => b[1].total - a[1].total);
 
-        // 2. 테스트 구분별 통계 계산 (NEW)
-        const testTypeStats = {};
-        const testTypeGrandTotal = { total: 0 };
-        this.getCodesByGroup('SEVERITY').forEach(c => testTypeGrandTotal[c.code_value] = 0);
+        // 2. 심각도별 조치 현황 계산
+        const severityStatusStats = {};
+        const severityStatusGrandTotal = { total: 0, completed: 0 };
+        statusCodes.forEach(c => severityStatusGrandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
-            const type = d.test_type || '단위테스트';
-            if (!testTypeStats[type]) {
-                testTypeStats[type] = { total: 0 };
-                this.getCodesByGroup('SEVERITY').forEach(c => testTypeStats[type][c.code_value] = 0);
+            const severity = d.severity || 'Minor';
+            if (!severityStatusStats[severity]) {
+                severityStatusStats[severity] = { total: 0, completed: 0 };
+                statusCodes.forEach(c => severityStatusStats[severity][c.code_value] = 0);
             }
-            testTypeStats[type].total++;
-            testTypeGrandTotal.total++;
-            if (testTypeStats[type][d.severity] !== undefined) {
-                testTypeStats[type][d.severity]++;
-                testTypeGrandTotal[d.severity]++;
+            severityStatusStats[severity].total++;
+            severityStatusGrandTotal.total++;
+            if (severityStatusStats[severity][d.status] !== undefined) {
+                severityStatusStats[severity][d.status]++;
+                severityStatusGrandTotal[d.status]++;
+            }
+            if (completedStatuses.includes(d.status)) {
+                severityStatusStats[severity].completed++;
+                severityStatusGrandTotal.completed++;
             }
         });
-        const sortedTestTypes = Object.entries(testTypeStats).sort((a, b) => b[1].total - a[1].total);
+
+        const severityStatusRows = [
+            ...severityCodes
+                .map(code => ({
+                    codeValue: code.code_value,
+                    codeName: code.code_name,
+                    color: code.color,
+                    ...(severityStatusStats[code.code_value] || {})
+                }))
+                .filter(row => row.total > 0),
+            ...Object.entries(severityStatusStats)
+                .filter(([severity]) => !severityCodes.some(code => code.code_value === severity))
+                .map(([severity, counts]) => ({
+                    codeValue: severity,
+                    codeName: severity,
+                    color: null,
+                    ...counts
+                }))
+        ].map(row => ({
+            ...row,
+            completionRate: row.total > 0 ? this.pct(row.completed || 0, row.total) : 0
+        }));
+
+        severityStatusGrandTotal.completionRate = severityStatusGrandTotal.total > 0
+            ? this.pct(severityStatusGrandTotal.completed, severityStatusGrandTotal.total)
+            : 0;
 
         // 3. 결함 조치 현황 계산 (테스트 구분별)
         const statusStats = {};
         const statusGrandTotal = { total: 0 };
-        this.getCodesByGroup('STATUS').forEach(c => statusGrandTotal[c.code_value] = 0);
+        statusCodes.forEach(c => statusGrandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (!statusStats[type]) {
                 statusStats[type] = { total: 0 };
-                this.getCodesByGroup('STATUS').forEach(c => statusStats[type][c.code_value] = 0);
+                statusCodes.forEach(c => statusStats[type][c.code_value] = 0);
             }
             statusStats[type].total++;
             statusGrandTotal.total++;
@@ -1794,7 +1983,7 @@ window.App = {
                             <tr>
                                 <th>테스트 구분</th>
                                 <th style="text-align: center;">전체 건수</th>
-                                ${this.getCodesByGroup('STATUS').map(c => `
+                                ${statusCodes.map(c => `
                                     <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name} (${c.code_value})</th>
                                 `).join('')}
                             </tr>
@@ -1804,7 +1993,7 @@ window.App = {
                                 <tr>
                                     <td><strong>${this.getCodeName('TEST_TYPE', type)}</strong></td>
                                     <td style="text-align: center;"><strong>${s.total}</strong></td>
-                                    ${this.getCodesByGroup('STATUS').map(c => `
+                                    ${statusCodes.map(c => `
                                         <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
                                     `).join('')}
                                 </tr>
@@ -1815,7 +2004,7 @@ window.App = {
                             <tr>
                                 <td style="padding: 1rem;">합계 (Total)</td>
                                 <td style="text-align: center; padding: 1rem;">${statusGrandTotal.total}</td>
-                                ${this.getCodesByGroup('STATUS').map(c => `
+                                ${statusCodes.map(c => `
                                     <td style="text-align: center; padding: 1rem; color: ${c.color || 'inherit'};">
                                         ${statusGrandTotal[c.code_value]}${statusGrandTotal.total > 0 ? ` <span style="font-size:0.8rem;opacity:0.8;">(${this.pct(statusGrandTotal[c.code_value], statusGrandTotal.total)}%)</span>` : ''}
                                     </td>
@@ -1829,38 +2018,56 @@ window.App = {
             </div>
 
             <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 2rem;">
-                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-microscope"></i> 테스트 구분별 결함 현황 (심각도별)</h2>
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-microscope"></i> 심각도별 조치 현황</h2>
                 <div class="data-table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>테스트 구분</th>
+                                <th>심각도</th>
                                 <th style="text-align: center;">전체 건수</th>
-                                ${this.getCodesByGroup('SEVERITY').map(c => `
+                                ${statusCodes.map(c => `
                                     <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name}</th>
                                 `).join('')}
+                                <th style="text-align: center;">조치완료율</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedTestTypes.map(([type, s]) => `
+                            ${severityStatusRows.map(row => `
                                 <tr>
-                                    <td><strong>${this.getCodeName('TEST_TYPE', type)}</strong></td>
-                                    <td style="text-align: center;"><strong>${s.total}</strong></td>
-                                    ${this.getCodesByGroup('SEVERITY').map(c => `
-                                    <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
-                                `).join('')}
+                                    <td><strong style="color: ${row.color || 'inherit'};">${this.sanitize(row.codeName)}</strong></td>
+                                    <td style="text-align: center;">
+                                        ${row.total > 0
+                                            ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${row.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)})'><strong>${row.total}</strong></button>`
+                                            : '<strong>0</strong>'}
+                                    </td>
+                                    ${statusCodes.map(c => `
+                                        <td style="text-align: center;">
+                                            ${(row[c.code_value] || 0) > 0
+                                                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)}, ${JSON.stringify(c.code_value)})'><strong>${row[c.code_value]}</strong></button>${row.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(row[c.code_value], row.total)}%)</span>` : ''}`
+                                                : '0'}
+                                        </td>
+                                    `).join('')}
+                                    <td style="text-align: center;">
+                                        <strong class="completion-rate-text signal-${this.getCompletionSignal(row.completionRate).key}">${row.completionRate}%</strong>
+                                        <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed || 0}/${row.total || 0}</div>
+                                    </td>
                                 </tr>
-                            `).join('') || '<tr><td colspan="6" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                            `).join('') || `<tr><td colspan="${3 + statusCodes.length}" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>`}
                         </tbody>
-                        ${sortedTestTypes.length > 0 ? `
+                        ${severityStatusRows.length > 0 ? `
                         <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
                             <tr>
                                 <td style="padding: 1rem;">합계 (Total)</td>
-                                <td style="text-align: center; padding: 1rem;">${testTypeGrandTotal.total}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--error);">${testTypeGrandTotal.Critical}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Critical, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--warning);">${testTypeGrandTotal.Major}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Major, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--accent);">${testTypeGrandTotal.Minor}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Minor, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
-                                <td style="text-align: center; padding: 1rem; color: var(--success);">${testTypeGrandTotal.Simple}${testTypeGrandTotal.total > 0 ? ' <span style="font-size:0.8rem;opacity:0.8;">(' + this.pct(testTypeGrandTotal.Simple, testTypeGrandTotal.total) + '%)</span>' : ''}</td>
+                                <td style="text-align: center; padding: 1rem;">${severityStatusGrandTotal.total}</td>
+                                ${statusCodes.map(c => `
+                                    <td style="text-align: center; padding: 1rem; color: ${c.color || 'inherit'};">
+                                        ${severityStatusGrandTotal[c.code_value]}${severityStatusGrandTotal.total > 0 ? ` <span style="font-size:0.8rem;opacity:0.8;">(${this.pct(severityStatusGrandTotal[c.code_value], severityStatusGrandTotal.total)}%)</span>` : ''}
+                                    </td>
+                                `).join('')}
+                                <td style="text-align: center; padding: 1rem;">
+                                    <strong class="completion-rate-text signal-${this.getCompletionSignal(severityStatusGrandTotal.completionRate).key}">${severityStatusGrandTotal.completionRate}%</strong>
+                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${severityStatusGrandTotal.completed}/${severityStatusGrandTotal.total}</div>
+                                </td>
                             </tr>
                         </tfoot>
                         ` : ''}
@@ -2615,6 +2822,24 @@ window.App = {
                                 <label>조치 완료일</label>
                                 <input type="date" name="action_end" value="${this.getKSTDateString(item.action_end)}">
                             </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${!id ? `
+                    <div style="margin-top: 2rem; padding: 1.25rem 1.5rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--bg-secondary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <div>
+                                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">
+                                    <i class="fas fa-puzzle-piece"></i> Chrome 확장프로그램으로 더 빠르게 등록할 수 있습니다.
+                                </div>
+                                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
+                                    현재 보고 있는 화면 캡처와 URL 전달을 자동화하려면 설치 안내를 확인해 주세요.
+                                </p>
+                            </div>
+                            <a href="#" class="btn" style="background: white; border: 1px solid var(--border);" onclick="App.openExtensionGuide(); return false;">
+                                <i class="fas fa-download"></i> 설치하기
+                            </a>
                         </div>
                     </div>
                     ` : ''}
