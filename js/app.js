@@ -606,13 +606,15 @@ window.App = {
             this.state.users = await StorageService.getUsers() || [];
             
             this.getFilteredDefects(); // Updates stats
-            console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
-            
+
             if (!this.state.initialRouteHandled) {
                 const hash = window.location.hash.substring(1) || 'dashboard';
                 this.navigate(hash);
                 this.state.initialRouteHandled = true;
+                return;
             }
+
+            console.log("[App] [fetchData] 5. Rendering Screen..."); this.render();
         } catch (err) {
             console.error("[App] FetchData failed:", err);
         }
@@ -673,6 +675,9 @@ window.App = {
             // 외부 연동(Test Bench)인 경우 데이터를 유지하고, 일반 메뉴 클릭 시에만 초기화
             if (!this.state.isStandalone) {
                 localStorage.removeItem('pending_defect');
+            } else {
+                this.state.currentView = 'register';
+                this.render();
             }
             this.showRegisterModal();
             return;
@@ -712,6 +717,14 @@ window.App = {
         }
     },
 
+    renderStandaloneShell(container) {
+        container.innerHTML = `
+            <div class="loader" style="min-height: 100vh;">
+                등록 화면을 준비하는 중...
+            </div>
+        `;
+    },
+
     render() {
         const root = document.getElementById('app');
         root.innerHTML = '';
@@ -726,6 +739,11 @@ window.App = {
             case 'users': this.renderUsers(root); break;
             case 'settings': this.renderSettings(root); break;
             case 'extension-guide': this.renderExtensionGuide(root); break;
+            case 'register':
+                if (this.state.isStandalone) {
+                    this.renderStandaloneShell(root);
+                }
+                break;
             case 'login': this.renderLogin(root); break;
             case 'signup': this.renderSignup(root); break;
             case 'password-reset': this.renderPasswordReset(root); break;
