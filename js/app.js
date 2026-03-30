@@ -2682,7 +2682,7 @@ window.App = {
         const title = id ? '결함 정보 관리' : '신규 결함 등록';
         const selectedScreenPath = this.buildScreenPath(item.menu_name, item.screen_name);
         const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
-        const showMobileQuickLauncher = isNewDefect && !this.state.isMobileQuickMode;
+        const showMobileQuickLauncher = isAdmin && isNewDefect && !this.state.isMobileQuickMode;
         const resolvedCreator = id ? (item.creator || currentUserName) : currentUserName;
 
         container.innerHTML = `
