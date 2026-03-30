@@ -3025,6 +3025,8 @@ window.App = {
         const parsedScreenPath = this.parseScreenPath(selectedScreenPath);
         const showMobileQuickLauncher = isAdmin && isNewDefect && !this.state.isMobileQuickMode;
         const resolvedCreator = id ? (item.creator || currentUserName) : currentUserName;
+        const canViewScreenUrl = !!id && ['조치자', '관리자'].includes(this.state.currentRole);
+        const normalizedScreenUrl = this.normalizeScreenUrl(item.screen_url || '');
 
         container.innerHTML = `
             <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
@@ -3121,6 +3123,26 @@ window.App = {
                         </div>
                     </div>
 
+                    ${canViewScreenUrl ? `
+                    <div class="form-group">
+                        <label>Screen URL</label>
+                        <div style="display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap;">
+                            <textarea rows="3" readonly style="flex:1 1 480px; min-height:88px; resize:vertical;">${this.sanitize(normalizedScreenUrl)}</textarea>
+                            <button
+                                type="button"
+                                class="btn"
+                                style="background: var(--bg-secondary); border: 1px solid var(--border);"
+                                onclick="App.copyScreenUrl()"
+                                ${normalizedScreenUrl ? '' : 'disabled'}>
+                                <i class="fas fa-copy"></i> Screen URL 복사하기
+                            </button>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                            ${normalizedScreenUrl ? '조치자와 관리자는 등록 당시의 원본 화면 URL을 확인하고 복사할 수 있습니다.' : '등록된 Screen URL 정보가 없습니다.'}
+                        </p>
+                    </div>
+                    ` : ''}
+
                     <div class="form-group">
                         <label>이미지 첨부</label>
                         <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
@@ -3139,22 +3161,22 @@ window.App = {
                     </div>
 
                     <!-- Hidden fields for capture data -->
-                    <input type="hidden" name="screen_url" value="${this.sanitize(item.screen_url || '')}">
+                    <input type="hidden" name="screen_url" value="${this.sanitize(normalizedScreenUrl)}">
                     <input type="hidden" name="screenshot" value="${this.sanitize(persistedScreenshot)}">
 
-                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${(previewSource || item.screen_url) ? '' : 'display: none;'}">
+                    <div id="imagePreviewWrapper" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; ${(previewSource || normalizedScreenUrl) ? '' : 'display: none;'}">
                         <div style="background: var(--bg-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
                             <span><i class="fas fa-eye"></i> 이미지 미리보기</span>
                             <a href="javascript:void(0)" 
                                style="color: var(--accent); text-decoration: none;"
-                               onclick="App.viewCurrentPreview('${this.sanitize(item.screen_url || '')}');">
+                               onclick="App.viewCurrentPreview('${this.sanitize(normalizedScreenUrl)}');">
                                <i class="fas fa-search-plus"></i> 클릭하여 확대 보기
                             </a>
                         </div>
                         <div id="imagePreviewArea" style="width: 100%; height: 350px; background: #f8fafc; display: flex; align-items: center; justify-content: center;">
                             ${(previewSource && this.isImageSource(previewSource))
                 ? `<img src="${previewSource}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`
-                : ((item.screen_url || screenshotSource)
+                : ((normalizedScreenUrl || screenshotSource)
                     ? '<div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">캡처 이미지가 없습니다. 상단의 확대 보기로 원본 화면을 확인해 주세요.</div>'
                     : '')
             }
@@ -3658,6 +3680,45 @@ window.App = {
             </html>
         `);
         viewer.document.close();
+    },
+
+    async copyText(text, successMessage = '복사되었습니다.') {
+        const value = String(text || '');
+        if (!value) {
+            alert('복사할 내용이 없습니다.');
+            return false;
+        }
+
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = value;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                textarea.style.pointerEvents = 'none';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+
+            alert(successMessage);
+            return true;
+        } catch (error) {
+            console.error('[App] Failed to copy text:', error);
+            alert('복사에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            return false;
+        }
+    },
+
+    async copyScreenUrl() {
+        const screenUrlInput = document.querySelector('input[name="screen_url"]');
+        const screenUrl = this.normalizeScreenUrl(screenUrlInput?.value || '');
+        return this.copyText(screenUrl, 'Screen URL을 복사했습니다.');
     },
 
     isImageSource(url) {
