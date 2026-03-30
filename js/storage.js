@@ -6,6 +6,20 @@ console.log("[Storage] Initializing Supabase Client with URL:", CONFIG.SUPABASE_
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, defect_identification, test_type, creator, assignee';
 const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end';
+const DEFECT_FIELD_LENGTH_HINTS = {
+    title: 200,
+    test_type: 50,
+    severity: 20,
+    priority: 10,
+    status: 20,
+    menu_name: 100,
+    screen_name: 100,
+    screen_url: 255,
+    defect_identification: 50,
+    creator: 50,
+    assignee: 50,
+    env_info: 255
+};
 
 function normalizeScreenPathValue(screenPath = '') {
     return String(screenPath || '')
@@ -30,6 +44,45 @@ function parseScreenPathFilter(screenPath = '') {
     return {
         menuName: parts.join(' > '),
         screenName
+    };
+}
+
+function collectOverflowCandidates(payload = {}, options = {}) {
+    const exactLimit = Number.isFinite(options.exactLimit) ? Number(options.exactLimit) : null;
+
+    return Object.entries(DEFECT_FIELD_LENGTH_HINTS)
+        .map(([field, assumedLimit]) => {
+            const rawValue = payload[field];
+            const value = typeof rawValue === 'string' ? rawValue : String(rawValue || '');
+
+            return {
+                field,
+                length: value.length,
+                assumed_limit: assumedLimit
+            };
+        })
+        .filter(candidate => candidate.length > 0)
+        .filter(candidate => exactLimit
+            ? candidate.assumed_limit === exactLimit && candidate.length > exactLimit
+            : candidate.length > candidate.assumed_limit)
+        .sort((a, b) => b.length - a.length);
+}
+
+function enrichLengthOverflowError(error = {}, payload = {}) {
+    const message = error?.message || '';
+    const limitMatch = message.match(/character varying\((\d+)\)/i);
+    const exactLimit = limitMatch ? Number(limitMatch[1]) : null;
+    const candidates = collectOverflowCandidates(payload, { exactLimit });
+    const fallbackCandidates = candidates.length > 0 ? candidates : collectOverflowCandidates(payload);
+
+    if (!exactLimit && fallbackCandidates.length === 0) {
+        return error;
+    }
+
+    return {
+        ...error,
+        varchar_limit: exactLimit,
+        overflow_candidates: fallbackCandidates
     };
 }
 
@@ -359,7 +412,7 @@ const StorageService = {
 
                 if (error) {
                     console.error("[Storage] Error updating defect:", error.message);
-                    this.lastDefectSaveError = {
+                    this.lastDefectSaveError = enrichLengthOverflowError({
                         operation: 'update',
                         stage: 'supabase.update',
                         type: 'supabase',
@@ -367,7 +420,7 @@ const StorageService = {
                         code: error.code || '',
                         details: error.details || '',
                         hint: error.hint || ''
-                    };
+                    }, payload);
                     return { ok: false, error: this.lastDefectSaveError };
                 }
                 console.log("[Storage] Defect updated successfully.");
@@ -389,7 +442,7 @@ const StorageService = {
 
                 if (error) {
                     console.error("[Storage] Error inserting defect:", error.message);
-                    this.lastDefectSaveError = {
+                    this.lastDefectSaveError = enrichLengthOverflowError({
                         operation: 'insert',
                         stage: 'supabase.insert',
                         type: 'supabase',
@@ -397,7 +450,7 @@ const StorageService = {
                         code: error.code || '',
                         details: error.details || '',
                         hint: error.hint || ''
-                    };
+                    }, payload);
                     return { ok: false, error: this.lastDefectSaveError };
                 }
                 console.log("[Storage] Defect inserted successfully.");
@@ -422,6 +475,11 @@ const StorageService = {
     },
 
     normalizeDefectSaveErrorLogRow(row = {}) {
+        const extra = row.extra || {};
+        const payloadSummary = row.payload_summary || {};
+        const creatorName = extra.creator_name || payloadSummary.creator || row.reported_by || '';
+        const reporterName = extra.reporter_name || row.runtime_context?.current_user || '';
+
         return {
             log_id: row.client_log_id || (row.id ? `DB-${row.id}` : ''),
             central_log_id: row.id || null,
@@ -433,7 +491,7 @@ const StorageService = {
             error_type: row.error_type || '',
             message: row.message || '',
             runtime: row.runtime_context || {},
-            payload_summary: row.payload_summary || {},
+            payload_summary: payloadSummary,
             storage_error: {
                 stage: row.stage || '',
                 type: row.error_type || '',
@@ -442,13 +500,17 @@ const StorageService = {
                 details: row.error_details || '',
                 hint: row.error_hint || ''
             },
-            extra: row.extra || null,
-            reported_by: row.reported_by || ''
+            extra,
+            creator_name: creatorName,
+            reporter_name: reporterName,
+            reported_by: row.reported_by || creatorName || ''
         };
     },
 
     async saveDefectSaveErrorLog(logEntry = {}) {
         try {
+            const creatorName = logEntry.creator_name || logEntry.payload_summary?.creator || logEntry.runtime?.current_user || '';
+            const reporterName = logEntry.reporter_name || logEntry.runtime?.current_user || '';
             const payload = {
                 client_log_id: logEntry.log_id || null,
                 operation: logEntry.operation || 'create',
@@ -462,8 +524,12 @@ const StorageService = {
                 error_hint: logEntry.storage_error?.hint || '',
                 runtime_context: logEntry.runtime || {},
                 payload_summary: logEntry.payload_summary || {},
-                extra: logEntry.extra || {},
-                reported_by: logEntry.runtime?.current_user || ''
+                extra: {
+                    ...(logEntry.extra || {}),
+                    creator_name: creatorName,
+                    reporter_name: reporterName
+                },
+                reported_by: creatorName
             };
 
             const { error } = await supabaseClient

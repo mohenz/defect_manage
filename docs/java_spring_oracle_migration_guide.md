@@ -47,19 +47,19 @@ CREATE TABLE USERS (
 ```sql
 CREATE TABLE DEFECTS (
     DEFECT_ID       NUMBER PRIMARY KEY,
-    TITLE           VARCHAR2(300) NOT NULL,
+    TITLE           VARCHAR2(255) NOT NULL,
     TEST_TYPE       VARCHAR2(50), -- 단위테스트, 통합테스트 등
-    SEVERITY        VARCHAR2(50), -- Critical, Major, Minor, Simple
-    PRIORITY        VARCHAR2(50), -- P1, P2, P3, P4
-    STATUS          VARCHAR2(50) DEFAULT 'New',
+    SEVERITY        VARCHAR2(20), -- Critical, Major, Minor, Simple
+    PRIORITY        VARCHAR2(10), -- P1, P2, P3, P4
+    STATUS          VARCHAR2(20) DEFAULT 'New',
     STEPS_TO_REPRO  CLOB,
-    MENU_NAME       VARCHAR2(200),
-    SCREEN_NAME     VARCHAR2(200),
+    MENU_NAME       VARCHAR2(255),
+    SCREEN_NAME     VARCHAR2(255),
     SCREEN_URL      CLOB,
     SCREENSHOT      CLOB,         -- 이미지 URL 또는 파일 경로
-    ENV_INFO        CLOB,
-    CREATOR         VARCHAR2(100), -- 등록자 성함
-    ASSIGNEE        VARCHAR2(100), -- 조치자 성함
+    ENV_INFO        VARCHAR2(255),
+    CREATOR         VARCHAR2(255), -- 등록자 성함
+    ASSIGNEE        VARCHAR2(255), -- 조치자 성함
     ACTION_COMMENT  CLOB,
     ACTION_START    DATE,
     ACTION_END      DATE,

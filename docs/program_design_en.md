@@ -30,19 +30,19 @@ Defects follow the standard workflow below from registration to closure.
 | Column Name | Type | Description | Remarks |
 |:---|:---|:---|:---|
 | **defect_id** | BIGINT (PK) | Unique Defect ID | Timestamp-based |
-| **title** | VARCHAR(200)| Defect Title | Min 5 characters required |
+| **title** | VARCHAR(255)| Defect Title | Min 5 characters required |
 | **test_type** | VARCHAR(50) | Test Type | Unit, Integration, User Test, etc. |
 | **severity** | VARCHAR(20) | **Severity** | Critical, Major, Minor, Simple |
 | **priority** | VARCHAR(10) | **Priority** | P1 (Urgent), P2, P3, P4 |
 | **status** | VARCHAR(20) | Defect Status | New ~ Closed |
 | **steps_to_repro** | TEXT | **Steps to Reproduce** | Sequential path to occurrence |
-| **menu_name** | VARCHAR(100)| Menu Name | Page Category (L/M) |
-| **screen_name** | VARCHAR(100)| Screen Name | Physical screen name |
+| **menu_name** | VARCHAR(255)| Menu Name | Page Category (L/M) |
+| **screen_name** | VARCHAR(255)| Screen Name | Physical screen name |
 | **screen_url** | TEXT | Source Screen URL | Actual browser address |
 | **screenshot** | TEXT | **Screen Capture** | Supabase Storage Public URL |
-| **env_info** | TEXT | **Environment Info** | OS, Browser, etc. |
-| **creator** | VARCHAR(50) | Creator | User name link |
-| **assignee** | VARCHAR(50) | Assignee | Actioner name link |
+| **env_info** | VARCHAR(255) | **Environment Info** | OS, Browser, etc. |
+| **creator** | VARCHAR(255) | Creator | User name link |
+| **assignee** | VARCHAR(255) | Assignee | Actioner name link |
 | **action_comment** | TEXT | Resolution Comment | Root cause and action analysis |
 | **action_start** | DATE | Action Start Date | |
 | **action_end** | DATE | Action Completion Date | |

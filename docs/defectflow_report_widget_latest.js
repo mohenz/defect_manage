@@ -672,6 +672,25 @@
         return document.title || "화면명 미확인";
     }
 
+    function normalizeScreenUrl(rawUrl) {
+        const trimmed = String(rawUrl || "").trim();
+        if (!trimmed) {
+            return "";
+        }
+
+        try {
+            const url = new URL(trimmed, window.location.href);
+            if (!/^https?:$/i.test(url.protocol)) {
+                return trimmed;
+            }
+
+            url.hash = "";
+            return url.toString();
+        } catch (err) {
+            return trimmed;
+        }
+    }
+
     function buildDefectData(screenshot) {
         const screenName = deriveScreenName();
 
@@ -679,7 +698,7 @@
             title: `[${screenName}] 결함 보고`,
             menu_name: deriveMenuName(),
             screen_name: screenName,
-            screen_url: window.location.href,
+            screen_url: normalizeScreenUrl(window.location.href),
             screenshot: screenshot || "",
             env_info: `Browser: ${navigator.userAgent}`,
             test_type: "사용자 테스트"

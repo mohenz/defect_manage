@@ -58,6 +58,21 @@ window.App = {
 
     buildDefectPayloadSummary(payload = {}) {
         const screenshot = typeof payload.screenshot === 'string' ? payload.screenshot : '';
+        const screenUrl = typeof payload.screen_url === 'string' ? payload.screen_url : '';
+        let screenUrlOrigin = '';
+        let screenUrlPathname = '';
+        let screenUrlQueryLength = 0;
+
+        try {
+            if (screenUrl) {
+                const parsedUrl = new URL(screenUrl, window.location.href);
+                screenUrlOrigin = parsedUrl.origin || '';
+                screenUrlPathname = parsedUrl.pathname || '';
+                screenUrlQueryLength = (parsedUrl.search || '').length;
+            }
+        } catch (error) {
+            screenUrlPathname = screenUrl.slice(0, 120);
+        }
 
         return {
             test_type: payload.test_type || '',
@@ -68,7 +83,11 @@ window.App = {
             status: payload.status || '',
             menu_name: payload.menu_name || '',
             screen_name: payload.screen_name || '',
-            screen_url: payload.screen_url || '',
+            screen_url: screenUrl,
+            screen_url_length: screenUrl.length,
+            screen_url_origin: screenUrlOrigin,
+            screen_url_pathname: screenUrlPathname,
+            screen_url_query_length: screenUrlQueryLength,
             creator: payload.creator || '',
             assignee: payload.assignee || '',
             steps_length: String(payload.steps_to_repro || '').length,
@@ -83,6 +102,9 @@ window.App = {
 
     recordDefectSaveError(context = {}) {
         const storageError = context.error || StorageService.getLastDefectSaveError?.() || null;
+        const payloadSummary = this.buildDefectPayloadSummary(context.payload || {});
+        const creatorName = payloadSummary.creator || this.state.currentUser?.name || '';
+        const reporterName = this.state.currentUser?.name || '';
         const entry = {
             log_id: this.createLocalLogId('DEFECT'),
             created_at: new Date().toISOString(),
@@ -103,9 +125,15 @@ window.App = {
                 current_user: this.state.currentUser?.name || '',
                 user_agent: navigator.userAgent
             },
-            payload_summary: this.buildDefectPayloadSummary(context.payload || {}),
+            payload_summary: payloadSummary,
             storage_error: storageError,
-            extra: context.extra || null
+            creator_name: creatorName,
+            reporter_name: reporterName,
+            extra: {
+                ...(context.extra || {}),
+                creator_name: creatorName,
+                reporter_name: reporterName
+            }
         };
 
         const logs = [entry, ...this.getDefectSaveErrorLogs()].slice(0, DEFECT_SAVE_ERROR_LOG_LIMIT);
@@ -203,6 +231,16 @@ window.App = {
                 <span class="badge" style="background: #fee2e2; color: #991b1b;">${this.sanitize(entry.operation || '-')}</span>
                 <span style="font-size:0.875rem; color: var(--text-secondary);">${this.formatDateKST(entry.created_at)}</span>
             </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:0.75rem; margin-bottom:1rem;">
+                <div style="padding:0.85rem 1rem; border:1px solid var(--border); border-radius:0.75rem; background: var(--bg-secondary);">
+                    <div style="font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">등록자</div>
+                    <div style="font-weight:600;">${this.sanitize(entry.creator_name || entry.payload_summary?.creator || '-')}</div>
+                </div>
+                <div style="padding:0.85rem 1rem; border:1px solid var(--border); border-radius:0.75rem; background: var(--bg-secondary);">
+                    <div style="font-size:0.75rem; color: var(--text-muted); margin-bottom:0.25rem;">실제 작업자</div>
+                    <div style="font-weight:600;">${this.sanitize(entry.reporter_name || entry.runtime?.current_user || '-')}</div>
+                </div>
+            </div>
             <pre style="margin:0; padding:1rem; border:1px solid var(--border); border-radius:0.75rem; background: var(--bg-secondary); color: var(--text-primary); overflow:auto; max-height: 60vh; white-space: pre-wrap;">${this.sanitize(JSON.stringify(entry, null, 2))}</pre>
             <div style="margin-top: 1.5rem; display:flex; justify-content:flex-end;">
                 <button type="button" class="btn btn-primary" onclick="App.closeModal()">닫기</button>
@@ -240,10 +278,10 @@ window.App = {
         const logs = this.state.defectSaveErrorLogs || [];
         const localBackupCount = this.getDefectSaveErrorLogs().length;
         const loadingMessage = this.state.defectSaveErrorLogsLoading
-            ? '<tr><td colspan="7" style="text-align:center; padding:2rem;">중앙 오류 로그를 불러오는 중입니다.</td></tr>'
+            ? '<tr><td colspan="8" style="text-align:center; padding:2rem;">중앙 오류 로그를 불러오는 중입니다.</td></tr>'
             : '';
         const emptyMessage = !this.state.defectSaveErrorLogsLoading && logs.length === 0
-            ? '<tr><td colspan="7" style="text-align:center; padding:2rem;">중앙 저장 오류 로그가 없습니다.</td></tr>'
+            ? '<tr><td colspan="8" style="text-align:center; padding:2rem;">중앙 저장 오류 로그가 없습니다.</td></tr>'
             : '';
         const errorBanner = this.state.defectSaveErrorLogsError
             ? `<div style="margin-bottom:1rem; padding:0.9rem 1rem; border-radius:0.75rem; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; font-size:0.875rem;">중앙 로그 조회 실패: ${this.sanitize(this.state.defectSaveErrorLogsError)}</div>`
@@ -283,6 +321,7 @@ window.App = {
                             <th>작업</th>
                             <th>연동 경로</th>
                             <th>제목</th>
+                            <th>등록자</th>
                             <th>캡처</th>
                             <th>오류 메시지</th>
                             <th>관리</th>
@@ -295,6 +334,7 @@ window.App = {
                                 <td>${this.sanitize(entry.operation || '-')}</td>
                                 <td>${this.sanitize(entry.pending_source || '-')}</td>
                                 <td style="max-width:240px; white-space:normal;">${this.sanitize(entry.payload_summary?.title || '-')}</td>
+                                <td>${this.sanitize(entry.creator_name || entry.payload_summary?.creator || '-')}</td>
                                 <td>${entry.payload_summary?.has_screenshot ? `${Number(entry.payload_summary.screenshot_length || 0).toLocaleString('ko-KR')} chars` : '-'}</td>
                                 <td style="max-width:280px; white-space:normal;">${this.sanitize(entry.message || '-')}</td>
                                 <td>
@@ -489,7 +529,7 @@ window.App = {
             title: source.title || '',
             menu_name: source.menu_name || parsedScreenPath.menuName || '',
             screen_name: source.screen_name || parsedScreenPath.screenName || '',
-            screen_url: source.screen_url || window.location.href,
+            screen_url: this.normalizeScreenUrl(source.screen_url || window.location.href),
             screenshot: '',
             env_info: source.env_info || '',
             test_type: source.test_type || '',
@@ -2959,7 +2999,7 @@ window.App = {
                     priority: data.priority,
                     menu_name: data.menu_name,
                     screen_name: data.screen_name,
-                    screen_url: data.screen_url,
+                    screen_url: this.normalizeScreenUrl(data.screen_url),
                     screenshot: data.screenshot,
                     env_info: data.env_info,
                     test_type: data.test_type,
@@ -3224,7 +3264,7 @@ window.App = {
                 priority: data.priority,
                 menu_name: data.menu_name,
                 screen_name: data.screen_name,
-                screen_url: data.screen_url,
+                screen_url: this.normalizeScreenUrl(data.screen_url),
                 test_type: data.test_type,
                 steps_to_repro: data.steps_to_repro
             };
@@ -3633,6 +3673,29 @@ window.App = {
         });
     },
 
+    normalizeScreenUrl(rawUrl) {
+        const trimmed = String(rawUrl || '').trim();
+        if (!trimmed) {
+            return '';
+        }
+
+        if (/^(javascript|data):/i.test(trimmed)) {
+            return '';
+        }
+
+        try {
+            const parsedUrl = new URL(trimmed, window.location.href);
+            if (!/^https?:$/i.test(parsedUrl.protocol)) {
+                return trimmed;
+            }
+
+            parsedUrl.hash = '';
+            return parsedUrl.toString();
+        } catch (error) {
+            return trimmed;
+        }
+    },
+
     loadImageElement(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3735,13 +3798,27 @@ window.App = {
     },
 
     async prepareDefectPayloadForSubmit(payload) {
-        if (!payload?.screenshot || !String(payload.screenshot).startsWith('data:image')) {
+        if (!payload) {
             return payload;
         }
 
-        const optimizedScreenshot = await this.optimizeImageDataUrl(payload.screenshot, { maxLength: 1_500_000 });
-        if (!optimizedScreenshot || optimizedScreenshot === payload.screenshot) {
-            return payload;
+        const normalizedScreenUrl = this.normalizeScreenUrl(payload.screen_url);
+        const screenUrlInput = document.querySelector('input[name="screen_url"]');
+        const normalizedPayload = normalizedScreenUrl !== payload.screen_url
+            ? { ...payload, screen_url: normalizedScreenUrl }
+            : payload;
+
+        if (screenUrlInput && normalizedScreenUrl !== screenUrlInput.value) {
+            screenUrlInput.value = normalizedScreenUrl;
+        }
+
+        if (!normalizedPayload.screenshot || !String(normalizedPayload.screenshot).startsWith('data:image')) {
+            return normalizedPayload;
+        }
+
+        const optimizedScreenshot = await this.optimizeImageDataUrl(normalizedPayload.screenshot, { maxLength: 1_500_000 });
+        if (!optimizedScreenshot || optimizedScreenshot === normalizedPayload.screenshot) {
+            return normalizedPayload;
         }
 
         const screenshotInput = document.querySelector('input[name="screenshot"]');
@@ -3752,7 +3829,7 @@ window.App = {
         this.updateImagePreview(optimizedScreenshot);
 
         return {
-            ...payload,
+            ...normalizedPayload,
             screenshot: optimizedScreenshot
         };
     },
@@ -3896,7 +3973,7 @@ window.App = {
             assignee: value('assignee', existing.assignee || ''),
             menu_name: menuName,
             screen_name: screenName,
-            screen_url: value('screen_url', existing.screen_url || ''),
+            screen_url: this.normalizeScreenUrl(value('screen_url', existing.screen_url || '')),
             screenshot: transientScreenshot || value('screenshot', existing.screenshot || ''),
             status: value('status', existing.status || 'Open'),
             defect_identification: value('defect_identification', existing.defect_identification || ''),

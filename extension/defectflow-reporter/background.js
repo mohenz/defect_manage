@@ -1,5 +1,24 @@
 const DEFECTFLOW_REGISTER_URL = 'https://mohenz.github.io/defect_manage/?mode=standalone#register';
 
+function normalizeScreenUrl(rawUrl = '') {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (!/^https?:$/i.test(url.protocol)) {
+      return trimmed;
+    }
+
+    url.hash = '';
+    return url.toString();
+  } catch (error) {
+    return trimmed;
+  }
+}
+
 async function buildPendingPayload(tab) {
   const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId, {
     format: 'png'
@@ -10,7 +29,7 @@ async function buildPendingPayload(tab) {
     screenshot,
     menu_name: '',
     screen_name: '',
-    screen_url: tab.url || '',
+    screen_url: normalizeScreenUrl(tab.url || ''),
     env_info: '',
     test_type: '',
     timestamp: new Date().toISOString(),

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS defects (
     defect_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title VARCHAR(200) NOT NULL,
+    title VARCHAR(255) NOT NULL,
     defect_type VARCHAR(20) NOT NULL,
     severity VARCHAR(10) DEFAULT 'Minor',
     priority VARCHAR(10) DEFAULT 'P3',
@@ -13,14 +13,14 @@ CREATE TABLE IF NOT EXISTS defects (
     expected_result TEXT,
     actual_result TEXT,
     screenshot_url VARCHAR(255),
-    screen_url VARCHAR(255),
-    menu_name VARCHAR(200),
-    screen_name VARCHAR(200),
+    screen_url TEXT,
+    menu_name VARCHAR(255),
+    screen_name VARCHAR(255),
     action_comment TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    creator VARCHAR(50),
-    assignee VARCHAR(50),
+    creator VARCHAR(255),
+    assignee VARCHAR(255),
     action_start DATETIME,
     action_end DATETIME
 );

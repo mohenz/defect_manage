@@ -30,19 +30,19 @@
 | 컬럼명 | 타입 | 설명 | 비고 |
 |:---|:---|:---|:---|
 | **defect_id** | BIGINT (PK) | 결함 고유번호 | Timestamp 기반 |
-| **title** | VARCHAR(200)| 결함명 | 필수 입력 (5자 이상) |
+| **title** | VARCHAR(255)| 결함명 | 필수 입력 (5자 이상) |
 | **test_type** | VARCHAR(50) | 테스트 구분 | 선오픈, 통합테스트, 3자테스트(I&C), 3자테스트(W2), 단위 등 |
 | **severity** | VARCHAR(20) | **심각도** | Critical, Major, Minor, Simple |
 | **priority** | VARCHAR(10) | **우선순위** | P1(긴급), P2, P3, P4 |
 | **status** | VARCHAR(20) | 결함상태 | New ~ Closed |
 | **steps_to_repro** | TEXT | **재현 단계** | 결함 발생 순차 경로 |
-| **menu_name** | VARCHAR(100)| 메뉴명 | 페이지 대분류/중분류 |
-| **screen_name** | VARCHAR(100)| 화면명 | 물리적 화면 이름 |
+| **menu_name** | VARCHAR(255)| 메뉴명 | 페이지 대분류/중분류 |
+| **screen_name** | VARCHAR(255)| 화면명 | 물리적 화면 이름 |
 | **screen_url** | TEXT | 발생 화면 URL | 실제 브라우저 주소 |
 | **screenshot** | TEXT | **화면 캡처** | Supabase Storage Public URL |
-| **env_info** | TEXT | **테스트 환경** | OS, 브라우저 버전 등 |
-| **creator** | VARCHAR(50) | 등록자 | 사용자 성함 연동 |
-| **assignee** | VARCHAR(50) | 조치자 | 담당 조치자 성함 연동 |
+| **env_info** | VARCHAR(255) | **테스트 환경** | OS, 브라우저 버전 등 |
+| **creator** | VARCHAR(255) | 등록자 | 사용자 성함 연동 |
+| **assignee** | VARCHAR(255) | 조치자 | 담당 조치자 성함 연동 |
 | **action_comment** | TEXT | 결함조치내용 | 원인 분석 및 조치 결과 |
 | **action_start** | DATE | 조치시작일 | |
 | **action_end** | DATE | 조치완료일 | |

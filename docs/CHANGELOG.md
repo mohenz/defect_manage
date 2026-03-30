@@ -9,6 +9,31 @@
 
 ### ✨ 기능 개선
 
+#### 67. 결함 저장 오류 로그에 등록자명 저장 보강
+- **배경**: 중앙 로그에서 실패 당시 결함의 등록자명을 바로 식별하기 어려워 원인 분석에 추가 확인이 필요했음
+- **변경 사항**:
+  - `defect_save_error_logs.reported_by`에 결함 등록자명(`payload creator`)을 저장하도록 조정
+  - 실제 저장 시점 작업자명은 `extra.reporter_name`에 함께 남기도록 보강
+  - 관리자 화면의 `저장 오류 로그` 목록과 상세 화면에서 등록자명을 바로 확인할 수 있도록 개선
+- **수정 파일**: `js/app.js`, `js/storage.js`, `docs/db_schema.md`
+
+#### 66. 운영 DB 기준으로 스키마 문서 길이 정보 정정
+- **배경**: 설계 문서의 일부 컬럼 길이 정보가 실제 운영 DB와 달라 확인 기준으로 쓰기 어려웠음
+- **변경 사항**:
+  - 운영 DB probe 검증 결과 기준으로 `title`, `menu_name`, `screen_name`, `env_info`, `creator`, `assignee` 길이를 `VARCHAR(255)`로 정정
+  - `screen_url`은 `TEXT`, `steps_to_repro`는 `TEXT`, `defect_identification`은 `VARCHAR(50)` 기준을 문서에 반영
+  - 한글/영문 설계 문서와 Oracle 마이그레이션 가이드, 로컬 스키마 파일의 관련 값을 함께 정리
+- **수정 파일**: `docs/db_schema.md`, `docs/program_design.md`, `docs/program_design_en.md`, `docs/java_spring_oracle_migration_guide.md`, `database/schema.sql`
+
+#### 65. 외부 연동 URL 정규화 및 길이 초과 진단 보강
+- **배경**: 운영 로그에서 `value too long for type character varying(255)` 오류가 반복됐고, 실제 원인 필드를 빠르게 특정할 수 있는 정보가 부족했음
+- **변경 사항**:
+  - 앱 저장 전 `screen_url`을 정규화해 불필요한 해시(`#...`)를 제거하고 일관된 URL 형식으로 저장하도록 보강
+  - 외부 위젯과 Chrome 확장프로그램에서도 `screen_url`을 동일한 규칙으로 정규화하도록 맞춤
+  - 저장 오류 로그 요약에 `screen_url_length`, `screen_url_origin`, `screen_url_query_length`를 추가
+  - `varchar(n)` 길이 초과 오류 발생 시 의심 필드와 실제 길이를 함께 기록하도록 진단 정보를 강화
+- **수정 파일**: `js/app.js`, `js/storage.js`, `docs/defectflow_report_widget_latest.js`, `extension/defectflow-reporter/background.js`
+
 #### 64. 외부 연동 등록 실패 분석용 저장 오류 로그 추가
 - **배경**: 테스트 대상 사이트에서 standalone 신규 결함 등록 시 저장 실패가 발생해도 원인 정보를 나중에 추적하기 어려웠음
 - **변경 사항**:
