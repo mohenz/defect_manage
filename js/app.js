@@ -3,6 +3,8 @@
  */
 
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
+const DEFECT_SAVE_ERROR_LOG_KEY = 'defect_save_error_logs';
+const DEFECT_SAVE_ERROR_LOG_LIMIT = 50;
 
 window.App = {
     // --- Utils ---
@@ -26,6 +28,286 @@ window.App = {
         return {
             key: 'green'
         };
+    },
+
+    createLocalLogId(prefix = 'ERR') {
+        return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    },
+
+    getDefectSaveErrorLogs() {
+        try {
+            const raw = localStorage.getItem(DEFECT_SAVE_ERROR_LOG_KEY);
+            if (!raw) return [];
+
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            console.error('[App] Failed to read defect save error logs:', error);
+            return [];
+        }
+    },
+
+    setDefectSaveErrorLogs(logs) {
+        try {
+            const normalizedLogs = Array.isArray(logs) ? logs.slice(0, DEFECT_SAVE_ERROR_LOG_LIMIT) : [];
+            localStorage.setItem(DEFECT_SAVE_ERROR_LOG_KEY, JSON.stringify(normalizedLogs));
+        } catch (error) {
+            console.error('[App] Failed to persist defect save error logs:', error);
+        }
+    },
+
+    buildDefectPayloadSummary(payload = {}) {
+        const screenshot = typeof payload.screenshot === 'string' ? payload.screenshot : '';
+
+        return {
+            test_type: payload.test_type || '',
+            title: payload.title || '',
+            title_length: String(payload.title || '').length,
+            severity: payload.severity || '',
+            priority: payload.priority || '',
+            status: payload.status || '',
+            menu_name: payload.menu_name || '',
+            screen_name: payload.screen_name || '',
+            screen_url: payload.screen_url || '',
+            creator: payload.creator || '',
+            assignee: payload.assignee || '',
+            steps_length: String(payload.steps_to_repro || '').length,
+            env_info_length: String(payload.env_info || '').length,
+            has_screenshot: !!screenshot,
+            screenshot_length: screenshot.length,
+            screenshot_kind: screenshot
+                ? (screenshot.startsWith('data:image') ? 'inline-data-url' : 'url-or-path')
+                : 'none'
+        };
+    },
+
+    recordDefectSaveError(context = {}) {
+        const storageError = context.error || StorageService.getLastDefectSaveError?.() || null;
+        const entry = {
+            log_id: this.createLocalLogId('DEFECT'),
+            created_at: new Date().toISOString(),
+            operation: context.operation || 'create',
+            defect_id: context.defectId || null,
+            stage: storageError?.stage || context.stage || 'submit',
+            error_type: storageError?.type || 'unknown',
+            message: storageError?.message || context.message || '알 수 없는 저장 오류',
+            pending_source: this.state.pendingDefectSource || 'manual',
+            runtime: {
+                href: window.location.href,
+                current_view: this.state.currentView,
+                current_modal: this.state.currentModal,
+                is_standalone: this.state.isStandalone,
+                is_mobile_quick_mode: this.state.isMobileQuickMode,
+                is_logged_in: this.state.isLoggedIn,
+                current_role: this.state.currentRole || '',
+                current_user: this.state.currentUser?.name || '',
+                user_agent: navigator.userAgent
+            },
+            payload_summary: this.buildDefectPayloadSummary(context.payload || {}),
+            storage_error: storageError,
+            extra: context.extra || null
+        };
+
+        const logs = [entry, ...this.getDefectSaveErrorLogs()].slice(0, DEFECT_SAVE_ERROR_LOG_LIMIT);
+        this.setDefectSaveErrorLogs(logs);
+        return entry;
+    },
+
+    async persistCentralDefectSaveErrorLog(entry) {
+        const centralResult = await StorageService.saveDefectSaveErrorLog(entry);
+        const updatedEntry = {
+            ...entry,
+            central_saved: centralResult.ok
+        };
+
+        if (centralResult.ok) {
+            updatedEntry.central_log_id = centralResult.data?.central_log_id || null;
+            updatedEntry.central_created_at = centralResult.data?.created_at || entry.created_at;
+        } else {
+            updatedEntry.central_save_error = centralResult.error || null;
+        }
+
+        const nextLogs = [
+            updatedEntry,
+            ...this.getDefectSaveErrorLogs().filter(log => log.log_id !== entry.log_id)
+        ].slice(0, DEFECT_SAVE_ERROR_LOG_LIMIT);
+        this.setDefectSaveErrorLogs(nextLogs);
+
+        if (this.state.currentView === 'settings' && this.state.settingsTab === 'error-logs') {
+            this.loadDefectSaveErrorLogs({ silent: true });
+        }
+
+        return updatedEntry;
+    },
+
+    async handleDefectSaveFailure({ operation = 'create', defectId = null, payload = {}, saveResult = null, userMessage = '저장에 실패했습니다.' } = {}) {
+        const localLogEntry = this.recordDefectSaveError({
+            operation,
+            defectId,
+            payload,
+            error: saveResult?.error || null
+        });
+        const logEntry = await this.persistCentralDefectSaveErrorLog(localLogEntry);
+        const reason = saveResult?.error?.message ? `\n원인: ${saveResult.error.message}` : '';
+        const centralNote = logEntry.central_saved
+            ? '\n중앙 오류 로그에도 저장되었습니다.'
+            : '\n중앙 오류 로그 저장에는 실패하여 이 브라우저의 로컬 백업에만 남았습니다.';
+        alert(`${userMessage}${reason}\n오류 로그 ID: ${logEntry.log_id}${centralNote}`);
+        return logEntry;
+    },
+
+    clearDefectSaveErrorLogs() {
+        if (!confirm('이 브라우저의 로컬 백업 오류 로그를 모두 삭제하시겠습니까?')) {
+            return;
+        }
+
+        localStorage.removeItem(DEFECT_SAVE_ERROR_LOG_KEY);
+        if (this.state.currentView === 'settings' && this.state.settingsTab === 'error-logs') {
+            this.render();
+        }
+    },
+
+    downloadDefectSaveErrorLogs() {
+        const logs = (this.state.defectSaveErrorLogsLoaded ? this.state.defectSaveErrorLogs : this.getDefectSaveErrorLogs());
+        if (logs.length === 0) {
+            alert('다운로드할 저장 오류 로그가 없습니다.');
+            return;
+        }
+
+        const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json;charset=utf-8' });
+        const link = document.createElement('a');
+        const objectUrl = URL.createObjectURL(blob);
+        link.href = objectUrl;
+        link.download = `defect_save_error_logs_${Date.now()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+    },
+
+    showDefectSaveErrorLogDetail(index) {
+        const logs = this.state.defectSaveErrorLogsLoaded ? this.state.defectSaveErrorLogs : this.getDefectSaveErrorLogs();
+        const entry = logs[index];
+        if (!entry) {
+            alert('선택한 오류 로그를 찾지 못했습니다.');
+            return;
+        }
+
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <h1>저장 오류 로그 상세</h1>
+                <p class="subtitle">오류 로그 ID: ${this.sanitize(entry.log_id)}</p>
+            </div>
+            <div style="display:flex; justify-content:space-between; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+                <span class="badge" style="background: #fee2e2; color: #991b1b;">${this.sanitize(entry.operation || '-')}</span>
+                <span style="font-size:0.875rem; color: var(--text-secondary);">${this.formatDateKST(entry.created_at)}</span>
+            </div>
+            <pre style="margin:0; padding:1rem; border:1px solid var(--border); border-radius:0.75rem; background: var(--bg-secondary); color: var(--text-primary); overflow:auto; max-height: 60vh; white-space: pre-wrap;">${this.sanitize(JSON.stringify(entry, null, 2))}</pre>
+            <div style="margin-top: 1.5rem; display:flex; justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" onclick="App.closeModal()">닫기</button>
+            </div>
+        `;
+        this.state.currentModal = 'save-error-log';
+        this.openModal();
+    },
+
+    async loadDefectSaveErrorLogs(options = {}) {
+        this.state.defectSaveErrorLogsLoading = true;
+        this.state.defectSaveErrorLogsError = '';
+
+        if (!options.silent && this.state.currentView === 'settings' && this.state.settingsTab === 'error-logs') {
+            this.render();
+        }
+
+        try {
+            const logs = await StorageService.getDefectSaveErrorLogs(100);
+            this.state.defectSaveErrorLogs = logs;
+            this.state.defectSaveErrorLogsLoaded = true;
+            this.state.defectSaveErrorLogsError = '';
+        } catch (error) {
+            this.state.defectSaveErrorLogsLoaded = true;
+            this.state.defectSaveErrorLogsError = error?.message || '중앙 오류 로그를 불러오지 못했습니다.';
+        } finally {
+            this.state.defectSaveErrorLogsLoading = false;
+            if (this.state.currentView === 'settings' && this.state.settingsTab === 'error-logs') {
+                this.render();
+            }
+        }
+    },
+
+    renderDefectSaveErrorLogPanel() {
+        const logs = this.state.defectSaveErrorLogs || [];
+        const localBackupCount = this.getDefectSaveErrorLogs().length;
+        const loadingMessage = this.state.defectSaveErrorLogsLoading
+            ? '<tr><td colspan="7" style="text-align:center; padding:2rem;">중앙 오류 로그를 불러오는 중입니다.</td></tr>'
+            : '';
+        const emptyMessage = !this.state.defectSaveErrorLogsLoading && logs.length === 0
+            ? '<tr><td colspan="7" style="text-align:center; padding:2rem;">중앙 저장 오류 로그가 없습니다.</td></tr>'
+            : '';
+        const errorBanner = this.state.defectSaveErrorLogsError
+            ? `<div style="margin-bottom:1rem; padding:0.9rem 1rem; border-radius:0.75rem; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; font-size:0.875rem;">중앙 로그 조회 실패: ${this.sanitize(this.state.defectSaveErrorLogsError)}</div>`
+            : '';
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                <div>
+                    <h2 style="margin-bottom: 0.5rem;"><i class="fas fa-triangle-exclamation"></i> 결함 저장 오류 로그</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.7;">
+                        저장 실패 시 중앙 DB 테이블에 로그를 남기고, 이 브라우저에는 최근 ${DEFECT_SAVE_ERROR_LOG_LIMIT}건의 로컬 백업을 함께 유지합니다.
+                    </p>
+                    <p style="color: var(--text-muted); font-size: 0.8125rem; line-height: 1.6; margin-top: 0.35rem;">
+                        현재 로컬 백업 로그 수: ${localBackupCount}건
+                    </p>
+                </div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button type="button" class="btn" style="background: var(--bg-secondary); border:1px solid var(--border);" onclick="App.loadDefectSaveErrorLogs()">
+                        <i class="fas fa-rotate-right"></i> 중앙 로그 새로고침
+                    </button>
+                    <button type="button" class="btn" style="background: var(--bg-secondary); border:1px solid var(--border);" onclick="App.downloadDefectSaveErrorLogs()">
+                        <i class="fas fa-download"></i> JSON 다운로드
+                    </button>
+                    <button type="button" class="btn" style="background: #fee2e2; color:#991b1b; border:1px solid #fecaca;" onclick="App.clearDefectSaveErrorLogs()">
+                        <i class="fas fa-trash"></i> 로컬 백업 초기화
+                    </button>
+                </div>
+            </div>
+
+            ${errorBanner}
+
+            <div class="data-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>발생 시각</th>
+                            <th>작업</th>
+                            <th>연동 경로</th>
+                            <th>제목</th>
+                            <th>캡처</th>
+                            <th>오류 메시지</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${loadingMessage || logs.map((entry, index) => `
+                            <tr>
+                                <td>${this.formatDateKST(entry.created_at)}</td>
+                                <td>${this.sanitize(entry.operation || '-')}</td>
+                                <td>${this.sanitize(entry.pending_source || '-')}</td>
+                                <td style="max-width:240px; white-space:normal;">${this.sanitize(entry.payload_summary?.title || '-')}</td>
+                                <td>${entry.payload_summary?.has_screenshot ? `${Number(entry.payload_summary.screenshot_length || 0).toLocaleString('ko-KR')} chars` : '-'}</td>
+                                <td style="max-width:280px; white-space:normal;">${this.sanitize(entry.message || '-')}</td>
+                                <td>
+                                    <button type="button" class="btn" style="padding:0.4rem 0.75rem; color: var(--accent);" onclick="App.showDefectSaveErrorLogDetail(${index})">
+                                        <i class="fas fa-file-lines"></i> 상세
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('') || emptyMessage}
+                    </tbody>
+                </table>
+            </div>
+        `;
     },
 
     // --- Common Codes Helpers ---
@@ -374,7 +656,12 @@ window.App = {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
         pendingDefectData: null, // Stores data received via postMessage for cross-domain support
+        pendingDefectSource: '',
         transientScreenshotData: '',
+        defectSaveErrorLogs: [],
+        defectSaveErrorLogsLoaded: false,
+        defectSaveErrorLogsLoading: false,
+        defectSaveErrorLogsError: '',
         selectedDefect: null,
         commonCodes: [],
         settingsTab: 'test-types',
@@ -632,6 +919,7 @@ window.App = {
             if (!event.data || event.data.type !== 'DEFECTFLOW_DATA') return;
 
             this.state.pendingDefectData = event.data.data || null;
+            this.state.pendingDefectSource = 'postMessage';
             console.log("[App] Received defect data via postMessage. Screenshot status:", !!this.state.pendingDefectData?.screenshot);
             this.handleIncomingDefectData();
         });
@@ -1263,7 +1551,8 @@ window.App = {
         const enabled = this.state.settings.enabledTestTypes;
         const tabs = [
             { id: 'test-types', label: '테스트 구분 설정', icon: 'fa-vial' },
-            { id: 'common-codes', label: '공통코드 관리', icon: 'fa-table-list' }
+            { id: 'common-codes', label: '공통코드 관리', icon: 'fa-table-list' },
+            { id: 'error-logs', label: '저장 오류 로그', icon: 'fa-triangle-exclamation' }
         ];
         const activeTab = this.state.settingsTab || 'test-types';
         const groupedCodes = [...new Set((this.state.commonCodes || []).map(c => c.group_code))];
@@ -1310,7 +1599,7 @@ window.App = {
                                 <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> 설정 저장하기</button>
                             </div>
                         </form>
-                    ` : `
+                    ` : activeTab === 'common-codes' ? `
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
                             <div>
                                 <h2 style="margin-bottom: 0.5rem;"><i class="fas fa-table-list"></i> 공통코드 관리</h2>
@@ -1364,6 +1653,8 @@ window.App = {
                                 </tbody>
                             </table>
                         </div>
+                    ` : `
+                        ${this.renderDefectSaveErrorLogPanel()}
                     `}
                 </div>
             </div>
@@ -1372,9 +1663,16 @@ window.App = {
         document.querySelectorAll('[data-settings-tab]').forEach(button => {
             button.onclick = () => {
                 this.state.settingsTab = button.dataset.settingsTab;
+                if (this.state.settingsTab === 'error-logs' && !this.state.defectSaveErrorLogsLoading) {
+                    this.loadDefectSaveErrorLogs({ silent: true });
+                }
                 this.render();
             };
         });
+
+        if (activeTab === 'error-logs' && !this.state.defectSaveErrorLogsLoaded && !this.state.defectSaveErrorLogsLoading) {
+            this.loadDefectSaveErrorLogs({ silent: true });
+        }
 
         const settingsForm = document.getElementById('settingsForm');
         if (settingsForm) {
@@ -2621,6 +2919,7 @@ window.App = {
         const currentUserName = this.state.currentUser?.name || '';
         const canAssign = isNewDefect || this.canEditAssignee();
         let item = itemOverride || (id ? this.getSelectedDefect(id) : {}) || {};
+        this.state.pendingDefectSource = '';
 
         if (isNewDefect) {
             item = {
@@ -2639,10 +2938,12 @@ window.App = {
             let data = null;
             if (pendingFromMessage) {
                 data = pendingFromMessage;
+                this.state.pendingDefectSource = 'postMessage';
                 console.log("[App] Using data from postMessage (Cross-Domain)");
             } else if (pendingFromLocal) {
                 try {
                     data = JSON.parse(pendingFromLocal);
+                    this.state.pendingDefectSource = 'localStorage';
                     console.log("[App] Using data from localStorage (Same-Domain)");
                 } catch (e) {
                     console.error("[App] Failed to parse pending_defect:", e);
@@ -2896,6 +3197,7 @@ window.App = {
             creator: currentUserName,
             ...itemOverride
         };
+        this.state.pendingDefectSource = '';
 
         const pendingFromMessage = this.state.pendingDefectData;
         const pendingFromLocal = localStorage.getItem('pending_defect');
@@ -2903,9 +3205,11 @@ window.App = {
 
         if (pendingFromMessage) {
             data = pendingFromMessage;
+            this.state.pendingDefectSource = 'postMessage';
         } else if (pendingFromLocal) {
             try {
                 data = JSON.parse(pendingFromLocal);
+                this.state.pendingDefectSource = 'localStorage';
             } catch (error) {
                 console.error('[App] Failed to parse pending_defect:', error);
                 localStorage.removeItem('pending_defect');
@@ -3087,7 +3391,8 @@ window.App = {
             e.preventDefault();
             const payload = this.buildDefectPayload(e.target, id);
 
-            if (await StorageService.saveDefect(payload, id)) {
+            const saveResult = await StorageService.saveDefect(payload, id);
+            if (saveResult.ok) {
                 alert('조치 결과가 저장되었습니다.');
                 if (this.state.isStandalone) {
                     this.closeModal();
@@ -3105,7 +3410,16 @@ window.App = {
             console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
                 this.closeModal();
                 this.navigate('list');
+                return;
             }
+
+            await this.handleDefectSaveFailure({
+                operation: 'action-update',
+                defectId: id,
+                payload,
+                saveResult,
+                userMessage: '조치 결과 저장에 실패했습니다.'
+            });
         });
     },
 
@@ -3118,7 +3432,7 @@ window.App = {
 
         const form = document.getElementById('defectForm');
         const submitButton = form.querySelector('button[type="submit"]');
-        const payload = this.buildDefectPayload(form, id);
+        let payload = this.buildDefectPayload(form, id);
 
         // Security: String validation
         if (!payload.title || payload.title.length < 5) {
@@ -3131,8 +3445,17 @@ window.App = {
             submitButton.textContent = id ? '저장 중...' : '등록 중...';
         }
 
-        if (await StorageService.saveDefect(payload, id)) {
+        try {
+            payload = await this.prepareDefectPayloadForSubmit(payload);
+        } catch (error) {
+            console.error('[App] Failed to prepare defect payload before submit:', error);
+        }
+
+        const saveResult = await StorageService.saveDefect(payload, id);
+        if (saveResult.ok) {
             localStorage.removeItem('pending_defect');
+            this.state.pendingDefectData = null;
+            this.state.pendingDefectSource = '';
             alert(id ? '수정되었습니다.' : '등록되었습니다.');
             if (this.state.isStandalone) {
                 this.closeModal();
@@ -3158,7 +3481,13 @@ window.App = {
             submitButton.textContent = id ? '수정 완료' : '결함 등록';
         }
 
-        alert(id ? '수정에 실패했습니다. 잠시 후 다시 시도해 주세요.' : '등록에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        await this.handleDefectSaveFailure({
+            operation: id ? 'update' : 'create',
+            defectId: id,
+            payload,
+            saveResult,
+            userMessage: id ? '수정에 실패했습니다.' : '등록에 실패했습니다.'
+        });
     },
 
     showRegisterModal() {
@@ -3320,10 +3649,19 @@ window.App = {
             throw new Error('이미지 파일만 업로드할 수 있습니다.');
         }
 
+        return this.optimizeImageDataUrl(rawDataUrl, { sourceSize: file.size });
+    },
+
+    async optimizeImageDataUrl(rawDataUrl, options = {}) {
+        if (!rawDataUrl || !String(rawDataUrl).startsWith('data:image')) {
+            return rawDataUrl || '';
+        }
+
         const image = await this.loadImageElement(rawDataUrl);
-        const maxDimension = 2400;
+        const maxDimension = options.maxDimension || 2400;
+        const maxLength = options.maxLength || 1_500_000;
         const needsResize = Math.max(image.width, image.height) > maxDimension;
-        const needsCompression = file.size > 2 * 1024 * 1024 || rawDataUrl.length > 1_800_000;
+        const needsCompression = Number(options.sourceSize || 0) > 2 * 1024 * 1024 || rawDataUrl.length > maxLength;
 
         if (!needsResize && !needsCompression) {
             return rawDataUrl;
@@ -3339,26 +3677,84 @@ window.App = {
             return rawDataUrl;
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, width, height);
-        context.drawImage(image, 0, 0, width, height);
-
         const candidates = [
             { mime: 'image/webp', quality: 0.92 },
             { mime: 'image/jpeg', quality: 0.92 },
             { mime: 'image/jpeg', quality: 0.86 }
         ];
+        let bestDataUrl = rawDataUrl;
+        let workingCanvas = canvas;
 
-        for (const candidate of candidates) {
-            const dataUrl = canvas.toDataURL(candidate.mime, candidate.quality);
-            if (dataUrl && dataUrl !== 'data:,' && dataUrl.length < rawDataUrl.length) {
-                return dataUrl;
+        const drawToCanvas = (targetCanvas, source, nextWidth, nextHeight) => {
+            const targetContext = targetCanvas.getContext('2d');
+            if (!targetContext) {
+                return false;
             }
+            targetCanvas.width = nextWidth;
+            targetCanvas.height = nextHeight;
+            targetContext.fillStyle = '#ffffff';
+            targetContext.fillRect(0, 0, nextWidth, nextHeight);
+            targetContext.drawImage(source, 0, 0, nextWidth, nextHeight);
+            return true;
+        };
+
+        if (!drawToCanvas(workingCanvas, image, width, height)) {
+            return rawDataUrl;
         }
 
-        return rawDataUrl;
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            for (const candidate of candidates) {
+                const dataUrl = workingCanvas.toDataURL(candidate.mime, candidate.quality);
+                if (!dataUrl || dataUrl === 'data:,') {
+                    continue;
+                }
+
+                if (dataUrl.length < bestDataUrl.length) {
+                    bestDataUrl = dataUrl;
+                }
+
+                if (dataUrl.length <= maxLength) {
+                    return dataUrl;
+                }
+            }
+
+            if (Math.max(workingCanvas.width, workingCanvas.height) <= 800) {
+                break;
+            }
+
+            const nextCanvas = document.createElement('canvas');
+            const nextWidth = Math.max(1, Math.round(workingCanvas.width * 0.82));
+            const nextHeight = Math.max(1, Math.round(workingCanvas.height * 0.82));
+            if (!drawToCanvas(nextCanvas, workingCanvas, nextWidth, nextHeight)) {
+                break;
+            }
+            workingCanvas = nextCanvas;
+        }
+
+        return bestDataUrl;
+    },
+
+    async prepareDefectPayloadForSubmit(payload) {
+        if (!payload?.screenshot || !String(payload.screenshot).startsWith('data:image')) {
+            return payload;
+        }
+
+        const optimizedScreenshot = await this.optimizeImageDataUrl(payload.screenshot, { maxLength: 1_500_000 });
+        if (!optimizedScreenshot || optimizedScreenshot === payload.screenshot) {
+            return payload;
+        }
+
+        const screenshotInput = document.querySelector('input[name="screenshot"]');
+        this.state.transientScreenshotData = optimizedScreenshot;
+        if (screenshotInput) {
+            screenshotInput.value = '';
+        }
+        this.updateImagePreview(optimizedScreenshot);
+
+        return {
+            ...payload,
+            screenshot: optimizedScreenshot
+        };
     },
 
     updateImagePreview(source) {

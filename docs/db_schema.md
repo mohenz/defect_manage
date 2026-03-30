@@ -66,7 +66,47 @@ CREATE TABLE app_settings (
 -- INSERT INTO app_settings (key, value) VALUES ('global_config', '{"enabledTestTypes": ["선오픈", "통합테스트", "3자테스트(I&C)", "3자테스트(W2)", "단위테스트"]}');
 ```
 
-## 4. 주요 설계 특징 및 제약 조건
+## 4. 결함 저장 오류 로그 테이블 (defect_save_error_logs)
+
+외부 사이트 연동, Chrome 확장프로그램 연동, 일반 등록 화면 등에서 결함 저장에 실패했을 때 원인을 중앙에서 추적하기 위한 테이블입니다.
+
+```sql
+CREATE TABLE defect_save_error_logs (
+    id               BIGSERIAL PRIMARY KEY,
+    client_log_id    VARCHAR(80) UNIQUE,
+    operation        VARCHAR(30) NOT NULL,
+    defect_id        BIGINT,
+    pending_source   VARCHAR(30) DEFAULT 'manual',
+    stage            VARCHAR(50),
+    error_type       VARCHAR(50),
+    message          TEXT NOT NULL,
+    error_code       VARCHAR(50),
+    error_details    TEXT,
+    error_hint       TEXT,
+    runtime_context  JSONB DEFAULT '{}'::jsonb,
+    payload_summary  JSONB DEFAULT '{}'::jsonb,
+    extra            JSONB DEFAULT '{}'::jsonb,
+    reported_by      VARCHAR(50),
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_defect_save_error_logs_created_at
+    ON defect_save_error_logs (created_at DESC);
+
+CREATE INDEX idx_defect_save_error_logs_pending_source
+    ON defect_save_error_logs (pending_source);
+
+CREATE INDEX idx_defect_save_error_logs_operation
+    ON defect_save_error_logs (operation);
+```
+
+### 저장 원칙
+
+*   **원본 캡처 미저장**: `payload_summary`에는 캡처 존재 여부와 길이 등 요약 정보만 저장하고, base64 원문은 저장하지 않습니다.
+*   **로컬 백업 병행**: 중앙 저장에 실패할 경우에도 브라우저 `localStorage`에 최근 로그를 백업해 관리자 화면에서 확인할 수 있습니다.
+*   **운영 분석 목적**: `runtime_context`에는 현재 화면, 모달, 역할, 사용자명, 브라우저 UA 등 분석에 필요한 최소 실행 문맥만 저장합니다.
+
+## 5. 주요 설계 특징 및 제약 조건
 
 *   **인증 보안**: `password` 필드는 클라이언트 측에서 `bcryptjs`를 통해 해싱된 값만 저장하며, 일반 텍스트는 서버로 전달되지 않습니다.
 *   **결함식별**: `defect_identification` 필드는 현업/개발 간의 의사소통을 위해 추가되었으며, 조치자 및 관리자만 수정 권한을 가집니다.

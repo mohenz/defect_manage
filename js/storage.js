@@ -34,6 +34,8 @@ function parseScreenPathFilter(screenPath = '') {
 }
 
 const StorageService = {
+    lastDefectSaveError: null,
+
     /**
      * Internal: Log changes to defect_history table
      */
@@ -342,6 +344,7 @@ const StorageService = {
     async saveDefect(payload, id = null) {
         console.log(`[Storage] Saving defect (${id ? 'Update' : 'New'})...`, payload);
         const now = this.getISO();
+        this.lastDefectSaveError = null;
 
         try {
             if (payload.screenshot && payload.screenshot.startsWith('data:image')) {
@@ -356,11 +359,19 @@ const StorageService = {
 
                 if (error) {
                     console.error("[Storage] Error updating defect:", error.message);
-                    alert("수정 실패: " + error.message);
-                    return false;
+                    this.lastDefectSaveError = {
+                        operation: 'update',
+                        stage: 'supabase.update',
+                        type: 'supabase',
+                        message: error.message || '결함 수정 중 오류가 발생했습니다.',
+                        code: error.code || '',
+                        details: error.details || '',
+                        hint: error.hint || ''
+                    };
+                    return { ok: false, error: this.lastDefectSaveError };
                 }
                 console.log("[Storage] Defect updated successfully.");
-                return true;
+                return { ok: true };
             } else {
                 // Ensure unique numeric ID - REMOVED for AUTOINCREMENT
                 // const numericId = parseInt(payload.defect_id) || Date.now();
@@ -378,17 +389,132 @@ const StorageService = {
 
                 if (error) {
                     console.error("[Storage] Error inserting defect:", error.message);
-                    alert("등록 실패: " + error.message);
-                    return false;
+                    this.lastDefectSaveError = {
+                        operation: 'insert',
+                        stage: 'supabase.insert',
+                        type: 'supabase',
+                        message: error.message || '결함 등록 중 오류가 발생했습니다.',
+                        code: error.code || '',
+                        details: error.details || '',
+                        hint: error.hint || ''
+                    };
+                    return { ok: false, error: this.lastDefectSaveError };
                 }
                 console.log("[Storage] Defect inserted successfully.");
-                return true;
+                return { ok: true };
             }
         } catch (err) {
             console.error("[Storage] Exception in saveDefect:", err);
-            alert("저장 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.");
-            return false;
+            this.lastDefectSaveError = {
+                operation: id ? 'update' : 'insert',
+                stage: 'exception',
+                type: 'exception',
+                message: err?.message || '저장 중 예외가 발생했습니다.',
+                name: err?.name || 'Error',
+                stack: err?.stack || ''
+            };
+            return { ok: false, error: this.lastDefectSaveError };
         }
+    },
+
+    getLastDefectSaveError() {
+        return this.lastDefectSaveError ? { ...this.lastDefectSaveError } : null;
+    },
+
+    normalizeDefectSaveErrorLogRow(row = {}) {
+        return {
+            log_id: row.client_log_id || (row.id ? `DB-${row.id}` : ''),
+            central_log_id: row.id || null,
+            created_at: row.created_at || '',
+            operation: row.operation || '',
+            defect_id: row.defect_id ?? null,
+            pending_source: row.pending_source || '',
+            stage: row.stage || '',
+            error_type: row.error_type || '',
+            message: row.message || '',
+            runtime: row.runtime_context || {},
+            payload_summary: row.payload_summary || {},
+            storage_error: {
+                stage: row.stage || '',
+                type: row.error_type || '',
+                message: row.message || '',
+                code: row.error_code || '',
+                details: row.error_details || '',
+                hint: row.error_hint || ''
+            },
+            extra: row.extra || null,
+            reported_by: row.reported_by || ''
+        };
+    },
+
+    async saveDefectSaveErrorLog(logEntry = {}) {
+        try {
+            const payload = {
+                client_log_id: logEntry.log_id || null,
+                operation: logEntry.operation || 'create',
+                defect_id: logEntry.defect_id ?? null,
+                pending_source: logEntry.pending_source || 'manual',
+                stage: logEntry.stage || logEntry.storage_error?.stage || 'submit',
+                error_type: logEntry.error_type || logEntry.storage_error?.type || 'unknown',
+                message: logEntry.message || logEntry.storage_error?.message || '알 수 없는 저장 오류',
+                error_code: logEntry.storage_error?.code || '',
+                error_details: logEntry.storage_error?.details || '',
+                error_hint: logEntry.storage_error?.hint || '',
+                runtime_context: logEntry.runtime || {},
+                payload_summary: logEntry.payload_summary || {},
+                extra: logEntry.extra || {},
+                reported_by: logEntry.runtime?.current_user || ''
+            };
+
+            const { error } = await supabaseClient
+                .from('defect_save_error_logs')
+                .insert([payload]);
+
+            if (error) {
+                console.error('[Storage] Error inserting defect save error log:', error.message);
+                return {
+                    ok: false,
+                    error: {
+                        message: error.message || '중앙 오류 로그 저장에 실패했습니다.',
+                        code: error.code || '',
+                        details: error.details || '',
+                        hint: error.hint || ''
+                    }
+                };
+            }
+
+            return {
+                ok: true,
+                data: this.normalizeDefectSaveErrorLogRow({
+                    ...payload,
+                    created_at: this.getISO()
+                })
+            };
+        } catch (err) {
+            console.error('[Storage] Exception in saveDefectSaveErrorLog:', err);
+            return {
+                ok: false,
+                error: {
+                    message: err?.message || '중앙 오류 로그 저장 중 예외가 발생했습니다.',
+                    name: err?.name || 'Error'
+                }
+            };
+        }
+    },
+
+    async getDefectSaveErrorLogs(limit = 100) {
+        const { data, error } = await supabaseClient
+            .from('defect_save_error_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('[Storage] Error fetching defect save error logs:', error.message);
+            throw error;
+        }
+
+        return (data || []).map(row => this.normalizeDefectSaveErrorLogRow(row));
     },
 
     async deleteDefect(id) {
