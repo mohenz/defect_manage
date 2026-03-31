@@ -931,7 +931,7 @@ window.App = {
             }
 
             this.state.users = await StorageService.getUsers() || [];
-            
+
             this.getFilteredDefects(); // Updates stats
 
             if (!this.state.initialRouteHandled) {
@@ -1854,19 +1854,19 @@ window.App = {
                                 <td style="text-align:center;">
                                     ${row.isUnassigned
                 ? row.total > 0
-                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects()"><strong>${row.total}</strong></button>`
-                : '<strong>0</strong>'
+                    ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects()"><strong>${row.total}</strong></button>`
+                    : '<strong>0</strong>'
                 : row.total > 0
-                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick="App.viewAssigneeDefects('${this.sanitize(row.user.name)}')"><strong>${row.total}</strong></button>`
-                : '<strong>0</strong>'}
+                    ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick="App.viewAssigneeDefects('${this.sanitize(row.user.name)}')"><strong>${row.total}</strong></button>`
+                    : '<strong>0</strong>'}
                                 </td>
                                 ${statusCodes.map(code => `
                                     <td style="text-align:center;">
                                         ${row.isUnassigned && (row.counts[code.code_value] || 0) > 0
-                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects('${code.code_value}')"><strong>${row.counts[code.code_value]}</strong></button>`
-                : !row.isUnassigned && code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
-                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(5, 150, 105, 0.08); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.2); justify-content:center;" onclick="App.viewAssigneeDefectsByStatus('${this.sanitize(row.user.name)}', 'Resolved')"><strong>${row.counts[code.code_value]}</strong></button>`
-                : (row.counts[code.code_value] || 0)}
+                            ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(217, 119, 6, 0.08); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2); justify-content:center;" onclick="App.viewUnassignedDefects('${code.code_value}')"><strong>${row.counts[code.code_value]}</strong></button>`
+                            : !row.isUnassigned && code.code_value === 'Resolved' && (row.counts[code.code_value] || 0) > 0
+                                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(5, 150, 105, 0.08); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.2); justify-content:center;" onclick="App.viewAssigneeDefectsByStatus('${this.sanitize(row.user.name)}', 'Resolved')"><strong>${row.counts[code.code_value]}</strong></button>`
+                                : (row.counts[code.code_value] || 0)}
                                     </td>
                                 `).join('')}
                                 <td style="text-align:center;">
@@ -2293,7 +2293,7 @@ window.App = {
         });
 
         // 비중(%) 계산 헬퍼
-        
+
 
         container.innerHTML = `
             <header class="animate-in">
@@ -2408,14 +2408,14 @@ window.App = {
                                     <td><strong style="color: ${row.color || 'inherit'};">${this.sanitize(row.codeName)}</strong></td>
                                     <td style="text-align: center;">
                                         ${row.total > 0
-                                            ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${row.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)})'><strong>${row.total}</strong></button>`
-                                            : '<strong>0</strong>'}
+                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${row.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)})'><strong>${row.total}</strong></button>`
+                : '<strong>0</strong>'}
                                     </td>
                                     ${statusCodes.map(c => `
                                         <td style="text-align: center;">
                                             ${(row[c.code_value] || 0) > 0
-                                                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)}, ${JSON.stringify(c.code_value)})'><strong>${row[c.code_value]}</strong></button>${row.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(row[c.code_value], row.total)}%)</span>` : ''}`
-                                                : '0'}
+                        ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewSeverityDefects(${JSON.stringify(row.codeValue)}, ${JSON.stringify(c.code_value)})'><strong>${row[c.code_value]}</strong></button>${row.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(row[c.code_value], row.total)}%)</span>` : ''}`
+                        : '0'}
                                         </td>
                                     `).join('')}
                                     <td style="text-align: center;">
@@ -2467,8 +2467,8 @@ window.App = {
                                 ${this.getCodesByGroup('IDENTIFICATION').map(c => `
                                     <td style="text-align: center;">
                                         ${identificationStats[c.code_value] > 0
-                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewIdentificationDefects(${JSON.stringify(c.code_value)})'><strong>${identificationStats[c.code_value]}</strong></button>${identificationStats.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(identificationStats[c.code_value], identificationStats.total)}%)</span>` : ''}`
-                : '0'}
+                                ? `<button type="button" class="btn" style="padding:0.35rem 0.65rem; background: rgba(37, 99, 235, 0.08); color: ${c.color || 'var(--accent)'}; border: 1px solid rgba(37, 99, 235, 0.2); justify-content:center;" onclick='App.viewIdentificationDefects(${JSON.stringify(c.code_value)})'><strong>${identificationStats[c.code_value]}</strong></button>${identificationStats.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(identificationStats[c.code_value], identificationStats.total)}%)</span>` : ''}`
+                                : '0'}
                                     </td>
                                 `).join('')}
                                 <td style="text-align: center;">
@@ -3096,7 +3096,7 @@ window.App = {
 
                     <div class="form-group">
                         <label>재현 단계 (Steps to Reproduce)</label>
-                        <textarea name="steps_to_repro" rows="4" placeholder="1. 로그인 페이지 접속&#10;2. 아이디 입력...">${this.sanitize(item.steps_to_repro || '')}</textarea>
+                        <textarea name="steps_to_repro" rows="8" placeholder="1. 로그인 페이지 접속&#10;2. 아이디 입력...">${this.sanitize(item.steps_to_repro || '')}</textarea>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
@@ -3114,11 +3114,11 @@ window.App = {
                                 `).join('')}
                             </select>
                             ${isNewDefect
-                                ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 신규 등록 시 담당자(조치자)를 선택할 수 있습니다.</p>'
-                                : (canAssign
-                                    ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 관리자와 조치자는 결함정보관리 화면에서 담당자 정보를 수정할 수 있습니다.</p>'
-                                    : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>')
-                            }
+                ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 신규 등록 시 담당자(조치자)를 선택할 수 있습니다.</p>'
+                : (canAssign
+                    ? '<p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">* 관리자와 조치자는 결함정보관리 화면에서 담당자 정보를 수정할 수 있습니다.</p>'
+                    : '<p style="font-size: 0.75rem; color: var(--error); margin-top: 0.25rem;">* 담당자 정보는 관리자 또는 조치자만 수정 가능합니다.</p>')
+            }
                             ${!canAssign ? `<input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">` : ''}
                         </div>
                     </div>
@@ -3461,15 +3461,15 @@ window.App = {
                     return;
                 }
                 // 2. Load Common Codes (Added for Phase 3-1)
-            try {
-                console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
-                console.log("[App] Common codes loaded:", this.state.commonCodes.length);
-            } catch (err) {
-                console.error("[App] Failed to load common codes:", err);
-                this.state.commonCodes = [];
-            }
+                try {
+                    console.log("[App] 3. Fetching Common Codes..."); this.state.commonCodes = await StorageService.fetchCommonCodes(); console.log("[App] 4. Common Codes Loaded:", this.state.commonCodes.length);
+                    console.log("[App] Common codes loaded:", this.state.commonCodes.length);
+                } catch (err) {
+                    console.error("[App] Failed to load common codes:", err);
+                    this.state.commonCodes = [];
+                }
 
-            console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
+                console.log("[App] 5. Starting FetchData..."); await this.fetchData(); console.log("[App] 6. Init Finished.");
                 this.closeModal();
                 this.navigate('list');
                 return;
