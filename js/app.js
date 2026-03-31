@@ -2570,7 +2570,7 @@ window.App = {
                         legend: {
                             position: 'bottom',
                             labels: {
-                                color: '#cbd5e1',
+                                color: '#334155',
                                 font: { size: 11 }
                             }
                         },
@@ -2632,7 +2632,7 @@ window.App = {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11 } } },
+                        legend: { position: 'bottom', labels: { color: '#334155', font: { size: 11 } } },
                         tooltip: {
                             callbacks: {
                                 label: (context) => `${context.dataset.label}: ${context.raw}% (${context.dataset.count}건)`
