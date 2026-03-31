@@ -2483,7 +2483,7 @@ window.App = {
             </div>
 
             <div class="form-container animate-in" style="max-width: 100%; margin-top: 2rem;">
-                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-users-viewfinder"></i> 등록자별 결함 통계 (심각도별)</h2>
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-users-viewfinder"></i> 등록자별 결함 통계</h2>
                 <div class="data-table-container">
                     <table>
                         <thead>
