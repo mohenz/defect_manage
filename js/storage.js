@@ -20,6 +20,21 @@ const DEFECT_FIELD_LENGTH_HINTS = {
     assignee: 50,
     env_info: 255
 };
+const ACTION_RECHECK_STATUS_VALUES = ['closed', 'resolved', 'staging'];
+const ACTION_RECHECK_QUERY_STATUS_VALUES = ['Closed', 'Resolved', 'Staging', 'closed', 'resolved', 'staging'];
+
+function normalizeDefectIdFilter(defectId) {
+    const normalized = String(defectId || '').trim();
+    if (!normalized) return null;
+    if (!/^\d+$/.test(normalized)) return null;
+
+    const parsed = Number.parseInt(normalized, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isBlankTextValue(value) {
+    return String(value || '').trim() === '';
+}
 
 function normalizeScreenPathValue(screenPath = '') {
     return String(screenPath || '')
@@ -275,12 +290,14 @@ const StorageService = {
         console.log(`[Storage] Fetching defects (Page ${page})...`, filters);
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
+        const defectIdFilter = normalizeDefectIdFilter(filters.defectId);
 
         let query = supabaseClient
             .from('defects')
             .select(DEFECT_LIST_COLUMNS, { count: 'exact' })
             .eq('is_deleted', 'N');
 
+        if (defectIdFilter !== null) query = query.eq('defect_id', defectIdFilter);
         if (filters.severity) query = query.eq('severity', filters.severity);
         if (filters.status) query = query.eq('status', filters.status);
         if (filters.title) query = query.ilike('title', `%${filters.title}%`);
@@ -322,11 +339,13 @@ const StorageService = {
 
     async getAllDefectsForExport(filters = {}) {
         console.log('[Storage] Fetching all defects for export...', filters);
+        const defectIdFilter = normalizeDefectIdFilter(filters.defectId);
         let query = supabaseClient
             .from('defects')
             .select('defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end')
             .eq('is_deleted', 'N');
 
+        if (defectIdFilter !== null) query = query.eq('defect_id', defectIdFilter);
         if (filters.severity) query = query.eq('severity', filters.severity);
         if (filters.status) query = query.eq('status', filters.status);
         if (filters.title) query = query.ilike('title', `%${filters.title}%`);
@@ -581,6 +600,31 @@ const StorageService = {
         }
 
         return (data || []).map(row => this.normalizeDefectSaveErrorLogRow(row));
+    },
+
+    async getDefectsNeedingActionRecheck() {
+        const { data, error } = await supabaseClient
+            .from('defects')
+            .select('defect_id, assignee, status, defect_identification, action_comment')
+            .eq('is_deleted', 'N')
+            .in('status', ACTION_RECHECK_QUERY_STATUS_VALUES)
+            .order('defect_id', { ascending: false });
+
+        if (error) {
+            console.error('[Storage] Error fetching defects needing action recheck:', error.message);
+            throw error;
+        }
+
+        return (data || []).filter(item => {
+            const normalizedStatus = String(item.status || '').trim().toLowerCase();
+            return ACTION_RECHECK_STATUS_VALUES.includes(normalizedStatus)
+                && isBlankTextValue(item.defect_identification)
+                && isBlankTextValue(item.action_comment);
+        }).map(item => ({
+            defect_id: item.defect_id,
+            assignee: item.assignee || '',
+            status: item.status || ''
+        }));
     },
 
     async deleteDefect(id) {

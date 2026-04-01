@@ -5,6 +5,23 @@
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 const DEFECT_SAVE_ERROR_LOG_KEY = 'defect_save_error_logs';
 const DEFECT_SAVE_ERROR_LOG_LIMIT = 50;
+const createDefaultListSearch = (overrides = {}) => ({
+    defectId: '',
+    severity: '',
+    status: '',
+    title: '',
+    stepsToRepro: '',
+    creator: '',
+    assignee: '',
+    assigneeUnassigned: false,
+    identificationUnassigned: false,
+    testType: '',
+    dateStart: '',
+    dateEnd: '',
+    identification: '',
+    screenPath: '',
+    ...overrides
+});
 
 window.App = {
     // --- Utils ---
@@ -274,6 +291,30 @@ window.App = {
         }
     },
 
+    async loadDefectActionRecheckItems(options = {}) {
+        this.state.defectActionRecheckLoading = true;
+        this.state.defectActionRecheckError = '';
+
+        if (!options.silent && this.state.currentView === 'settings' && this.state.settingsTab === 'action-recheck') {
+            this.render();
+        }
+
+        try {
+            this.state.defectActionRecheckItems = await StorageService.getDefectsNeedingActionRecheck();
+            this.state.defectActionRecheckLoaded = true;
+            this.state.defectActionRecheckError = '';
+        } catch (error) {
+            this.state.defectActionRecheckItems = [];
+            this.state.defectActionRecheckLoaded = true;
+            this.state.defectActionRecheckError = error?.message || '결함조치재확인 목록을 불러오지 못했습니다.';
+        } finally {
+            this.state.defectActionRecheckLoading = false;
+            if (this.state.currentView === 'settings' && this.state.settingsTab === 'action-recheck') {
+                this.render();
+            }
+        }
+    },
+
     renderDefectSaveErrorLogPanel() {
         const logs = this.state.defectSaveErrorLogs || [];
         const localBackupCount = this.getDefectSaveErrorLogs().length;
@@ -344,6 +385,67 @@ window.App = {
                                 </td>
                             </tr>
                         `).join('') || emptyMessage}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    renderDefectActionRecheckPanel() {
+        const items = this.state.defectActionRecheckItems || [];
+        const loadingMessage = this.state.defectActionRecheckLoading
+            ? '<tr><td colspan="3" style="text-align:center; padding:2rem;">결함조치재확인 목록을 불러오는 중입니다.</td></tr>'
+            : '';
+        const emptyMessage = !this.state.defectActionRecheckLoading && items.length === 0
+            ? '<tr><td colspan="3" style="text-align:center; padding:2rem;">재확인이 필요한 결함이 없습니다.</td></tr>'
+            : '';
+        const errorBanner = this.state.defectActionRecheckError
+            ? `<div style="margin-bottom:1rem; padding:0.9rem 1rem; border-radius:0.75rem; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; font-size:0.875rem;">목록 조회 실패: ${this.sanitize(this.state.defectActionRecheckError)}</div>`
+            : '';
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                <div>
+                    <h2 style="margin-bottom: 0.5rem;"><i class="fas fa-clipboard-check"></i> 결함조치재확인</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.7;">
+                        상태가 완료 계열(<code>Closed</code>, <code>Resolved</code>, <code>Staging</code>)인데도 결함식별과 조치내용이 모두 비어 있는 항목을 확인합니다.
+                    </p>
+                    <p style="color: var(--text-muted); font-size: 0.8125rem; line-height: 1.6; margin-top: 0.35rem;">
+                        현재 대상 건수: ${items.length}건
+                    </p>
+                </div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button type="button" class="btn" style="background: var(--bg-secondary); border:1px solid var(--border);" onclick="App.loadDefectActionRecheckItems()">
+                        <i class="fas fa-rotate-right"></i> 목록 새로고침
+                    </button>
+                </div>
+            </div>
+
+            ${errorBanner}
+
+            <div class="data-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Defect ID</th>
+                            <th>담당자</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${loadingMessage}
+                        ${!this.state.defectActionRecheckLoading ? items.map(item => `
+                            <tr>
+                                <td><strong class="clickable-link" onclick="App.viewDefectInList(${item.defect_id})">#${item.defect_id}</strong></td>
+                                <td>${this.sanitize(item.assignee || '-')}</td>
+                                <td>
+                                    <span class="badge" style="background-color: ${this.getCodeColor('STATUS', item.status) || '#64748b'}; color: white;">
+                                        ${this.getCodeName('STATUS', item.status)}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('') : ''}
+                        ${emptyMessage}
                     </tbody>
                 </table>
             </div>
@@ -676,21 +778,7 @@ window.App = {
         listConfig: {
             page: 1,
             pageSize: 20,
-            search: {
-                severity: '',
-                status: '',
-                title: '',
-                stepsToRepro: '',
-                creator: '',
-                assignee: '',
-                assigneeUnassigned: false,
-                identificationUnassigned: false,
-                testType: '',
-                dateStart: '',
-                dateEnd: '',
-                identification: '',
-                screenPath: ''
-            }
+            search: createDefaultListSearch()
         },
         settings: {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
@@ -702,6 +790,10 @@ window.App = {
         defectSaveErrorLogsLoaded: false,
         defectSaveErrorLogsLoading: false,
         defectSaveErrorLogsError: '',
+        defectActionRecheckItems: [],
+        defectActionRecheckLoaded: false,
+        defectActionRecheckLoading: false,
+        defectActionRecheckError: '',
         selectedDefect: null,
         commonCodes: [],
         settingsTab: 'test-types',
@@ -1592,6 +1684,7 @@ window.App = {
         const tabs = [
             { id: 'test-types', label: '테스트 구분 설정', icon: 'fa-vial' },
             { id: 'common-codes', label: '공통코드 관리', icon: 'fa-table-list' },
+            { id: 'action-recheck', label: '결함조치재확인', icon: 'fa-clipboard-check' },
             { id: 'error-logs', label: '저장 오류 로그', icon: 'fa-triangle-exclamation' }
         ];
         const activeTab = this.state.settingsTab || 'test-types';
@@ -1693,6 +1786,8 @@ window.App = {
                                 </tbody>
                             </table>
                         </div>
+                    ` : activeTab === 'action-recheck' ? `
+                        ${this.renderDefectActionRecheckPanel()}
                     ` : `
                         ${this.renderDefectSaveErrorLogPanel()}
                     `}
@@ -1703,12 +1798,19 @@ window.App = {
         document.querySelectorAll('[data-settings-tab]').forEach(button => {
             button.onclick = () => {
                 this.state.settingsTab = button.dataset.settingsTab;
+                if (this.state.settingsTab === 'action-recheck' && !this.state.defectActionRecheckLoading) {
+                    this.loadDefectActionRecheckItems({ silent: true });
+                }
                 if (this.state.settingsTab === 'error-logs' && !this.state.defectSaveErrorLogsLoading) {
                     this.loadDefectSaveErrorLogs({ silent: true });
                 }
                 this.render();
             };
         });
+
+        if (activeTab === 'action-recheck' && !this.state.defectActionRecheckLoaded && !this.state.defectActionRecheckLoading) {
+            this.loadDefectActionRecheckItems({ silent: true });
+        }
 
         if (activeTab === 'error-logs' && !this.state.defectSaveErrorLogsLoaded && !this.state.defectSaveErrorLogsLoading) {
             this.loadDefectSaveErrorLogs({ silent: true });
@@ -2013,6 +2115,20 @@ window.App = {
             screenPath: ''
         };
         this.state.listConfig.page = 1;
+        this.navigate('list');
+    },
+
+    viewDefectInList(defectId) {
+        this.state.listConfig.search = createDefaultListSearch({
+            defectId: String(defectId || '')
+        });
+        this.state.listConfig.page = 1;
+
+        if (this.state.currentView === 'list') {
+            this.fetchData({ viewHint: 'list' });
+            return;
+        }
+
         this.navigate('list');
     },
 
@@ -2650,7 +2766,7 @@ window.App = {
 
     renderList(container) {
         const config = this.state.listConfig;
-        const search = config.search;
+        const search = config.search || createDefaultListSearch();
 
         // pagedData: Now already fetched from server
         const pagedData = this.state.defects;
@@ -2672,6 +2788,10 @@ window.App = {
             <!-- Search Filters -->
             <div class="form-container animate-in" style="max-width: 100%; margin-bottom: 1.5rem; padding: 1.5rem;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem;">결함 ID</label>
+                        <input type="text" id="searchDefectId" value="${this.sanitize(search.defectId || '')}" onkeydown="if(event.key==='Enter') App.handleSearch()" placeholder="예: 1024">
+                    </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">테스트 구분</label>
                         <select id="searchTestType">
@@ -2830,8 +2950,15 @@ window.App = {
 
     // 조회 버튼 클릭 또는 텍스트 입력 Enter 시 실행
     handleSearch() {
+        const defectId = document.getElementById('searchDefectId').value.trim();
+        if (defectId && !/^\d+$/.test(defectId)) {
+            alert('결함 ID는 숫자만 입력해주세요.');
+            return;
+        }
+
         const selectedIdentification = document.getElementById('searchIdentification').value;
-        this.state.listConfig.search = {
+        this.state.listConfig.search = createDefaultListSearch({
+            defectId,
             severity: document.getElementById('searchSeverity').value,
             status: document.getElementById('searchStatus').value,
             identification: selectedIdentification === '__UNASSIGNED__' ? '' : selectedIdentification,
@@ -2844,27 +2971,13 @@ window.App = {
             testType: document.getElementById('searchTestType').value,
             dateStart: document.getElementById('searchDateStart').value,
             dateEnd: document.getElementById('searchDateEnd').value
-        };
+        });
         this.state.listConfig.page = 1;
         this.fetchData();
     },
 
     resetFilters() {
-        this.state.listConfig.search = {
-            severity: '',
-            status: '',
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: '',
-            assigneeUnassigned: false,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+        this.state.listConfig.search = createDefaultListSearch();
         this.state.listConfig.page = 1;
         this.fetchData(); // 초기화 후 즉시 전체 재조회
     },
