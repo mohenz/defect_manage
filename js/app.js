@@ -295,7 +295,10 @@ window.App = {
         this.state.defectActionRecheckLoading = true;
         this.state.defectActionRecheckError = '';
 
-        if (!options.silent && this.state.currentView === 'settings' && this.state.settingsTab === 'action-recheck') {
+        const shouldRenderActionRecheck = this.state.currentView === 'assignee-status'
+            || (this.state.currentView === 'settings' && this.state.settingsTab === 'action-recheck');
+
+        if (!options.silent && shouldRenderActionRecheck) {
             this.render();
         }
 
@@ -309,7 +312,7 @@ window.App = {
             this.state.defectActionRecheckError = error?.message || '결함조치재확인 목록을 불러오지 못했습니다.';
         } finally {
             this.state.defectActionRecheckLoading = false;
-            if (this.state.currentView === 'settings' && this.state.settingsTab === 'action-recheck') {
+            if (shouldRenderActionRecheck) {
                 this.render();
             }
         }
@@ -1135,6 +1138,10 @@ window.App = {
         if (view === 'list' && previousView !== 'list' && this.state.initialRouteHandled) {
             this.fetchData({ viewHint: 'list' });
         }
+
+        if (view === 'assignee-status' && previousView !== 'assignee-status' && !this.state.defectActionRecheckLoading) {
+            this.loadDefectActionRecheckItems({ silent: true });
+        }
     },
 
     renderStandaloneShell(container) {
@@ -1831,6 +1838,10 @@ window.App = {
     },
 
     renderAssigneeStatusScreen(container) {
+        if (!this.state.defectActionRecheckLoaded && !this.state.defectActionRecheckLoading) {
+            this.loadDefectActionRecheckItems({ silent: true });
+        }
+
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -1841,6 +1852,10 @@ window.App = {
 
             <div class="form-container animate-in" style="max-width: 100%;">
                 ${this.renderAssigneeStatusPanel()}
+            </div>
+
+            <div class="form-container animate-in" style="max-width: 100%; margin-top: 1.5rem;">
+                ${this.renderDefectActionRecheckPanel()}
             </div>
         `;
     },
