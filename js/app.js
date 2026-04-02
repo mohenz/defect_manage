@@ -787,6 +787,10 @@ window.App = {
             enabledTestTypes: ['선오픈', '통합테스트', '3자테스트(I&C)', '3자테스트(W2)', '단위테스트']
         },
         pendingDefectData: null, // Stores data received via postMessage for cross-domain support
+        userListConfig: {
+            page: 1,
+            pageSize: 15
+        },
         pendingDefectSource: '',
         transientScreenshotData: '',
         defectSaveErrorLogs: [],
@@ -1574,6 +1578,17 @@ window.App = {
     },
 
     renderUsers(container) {
+        const config = this.state.userListConfig;
+        const totalItems = this.state.users.length;
+        const totalPages = Math.ceil(totalItems / config.pageSize);
+        
+        const pageGroupSize = 10;
+        const currentGroup = Math.floor((config.page - 1) / pageGroupSize);
+        const startPage = currentGroup * pageGroupSize + 1;
+        const endPage = Math.min(startPage + pageGroupSize - 1, totalPages);
+
+        const pagedUsers = this.state.users.slice((config.page - 1) * config.pageSize, config.page * config.pageSize);
+
         container.innerHTML = `
             <header class="animate-in">
                 <div>
@@ -1582,6 +1597,10 @@ window.App = {
                 </div>
                 <button class="btn btn-primary" onclick="App.renderUserForm()"><i class="fas fa-user-plus"></i> 새 담당자 등록</button>
             </header>
+
+            <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                전체 <strong>${totalItems}</strong>명 (${config.page} / ${totalPages || 1} 페이지)
+            </div>
 
             <div class="data-table-container animate-in">
                 <table>
@@ -1598,7 +1617,7 @@ window.App = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${this.state.users.map(u => `
+                        ${pagedUsers.map(u => `
                             <tr>
                                 <td>#${u.user_id}</td>
                                 <td><span class="badge" style="background: var(--bg-secondary); color: var(--text-main); font-size: 0.75rem;">${u.role}</span></td>
@@ -1618,8 +1637,22 @@ window.App = {
                     </tbody>
                 </table>
             </div>
-        `;
-    },
+
+            <!-- User Pagination Controls -->
+            ${totalPages > 1 ? `
+            <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 0.5rem; align-items: center;">
+                <button class="btn" ${config.page === 1 ? 'disabled' : ''} onclick="App.changeUserPage(1)" title="첫 페이지" style="padding: 0.4rem 0.6rem;"><i class="fas fa-angle-double-left"></i></button>
+                <button class="btn" ${config.page === 1 ? 'disabled' : ''} onclick="App.changeUserPage(${config.page - 1})" style="padding: 0.4rem 0.8rem;">이전</button>
+                
+                ${Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => `
+                    <button class="btn" style="padding: 0.4rem 0.8rem; min-width: 2.5rem; background: ${p === config.page ? 'var(--accent)' : 'var(--bg-main)'}; color: ${p === config.page ? 'white' : 'var(--text-primary)'}; border: 1px solid var(--border); font-weight: ${p === config.page ? '700' : '400'};" onclick="App.changeUserPage(${p})">${p}</button>
+                `).join('')}
+                
+                <button class="btn" ${config.page === totalPages ? 'disabled' : ''} onclick="App.changeUserPage(${config.page + 1})" style="padding: 0.4rem 0.8rem;">다음</button>
+                <button class="btn" ${config.page === totalPages ? 'disabled' : ''} onclick="App.changeUserPage(${totalPages})" title="마지막 페이지" style="padding: 0.4rem 0.6rem;"><i class="fas fa-angle-double-right"></i></button>
+            </div>
+            ` : ''}
+        `},
 
     renderUserForm(id = null) {
         const user = id ? this.state.users.find(u => u.user_id === id) : {};
@@ -3012,8 +3045,10 @@ window.App = {
 
     changePage(p) {
         this.state.listConfig.page = p;
-        this.fetchData(); // Trigger server-side fetch
+        this.fetchData();
     },
+
+    changeUserPage(p) { this.state.userListConfig.page = p; this.render(); },
 
     async downloadExcel() {
         // 로딩 표시
