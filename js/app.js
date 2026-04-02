@@ -2787,6 +2787,11 @@ window.App = {
         const pagedData = this.state.defects;
         const totalItems = this.state.totalDefectCount;
         const totalPages = Math.ceil(totalItems / config.pageSize);
+        // Calculating page group (10 pages per group)
+        const pageGroupSize = 10;
+        const currentGroup = Math.floor((config.page - 1) / pageGroupSize);
+        const startPage = currentGroup * pageGroupSize + 1;
+        const endPage = Math.min(startPage + pageGroupSize - 1, totalPages);
 
         container.innerHTML = `
             <header class="animate-in">
@@ -2953,11 +2958,13 @@ window.App = {
             <!-- Pagination Controls -->
             ${totalPages > 1 ? `
             <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 0.5rem;">
+                <button class="btn" ${config.page === 1 ? 'disabled' : ''} onclick="App.changePage(1)" title="첫 페이지" style="padding: 0.4rem 0.6rem;"><i class="fas fa-angle-double-left"></i></button>
                 <button class="btn" ${config.page === 1 ? 'disabled' : ''} onclick="App.changePage(${config.page - 1})" style="padding: 0.4rem 0.8rem;">이전</button>
-                ${Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
-                    <button class="btn" style="padding: 0.4rem 0.8rem; background: ${p === config.page ? 'var(--accent)' : 'var(--bg-main)'}; color: ${p === config.page ? 'white' : 'var(--text-primary)'}; border: 1px solid var(--border);" onclick="App.changePage(${p})">${p}</button>
+                ${Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => `
+                    <button class="btn" style="padding: 0.4rem 0.8rem; min-width: 2.5rem; background: ${p === config.page ? 'var(--accent)' : 'var(--bg-main)'}; color: ${p === config.page ? 'white' : 'var(--text-primary)'}; border: 1px solid var(--border); font-weight: ${p === config.page ? '700' : '400'};" onclick="App.changePage(${p})">${p}</button>
                 `).join('')}
                 <button class="btn" ${config.page === totalPages ? 'disabled' : ''} onclick="App.changePage(${config.page + 1})" style="padding: 0.4rem 0.8rem;">다음</button>
+                <button class="btn" ${config.page === totalPages ? 'disabled' : ''} onclick="App.changePage(${totalPages})" title="마지막 페이지" style="padding: 0.4rem 0.6rem;"><i class="fas fa-angle-double-right"></i></button>
             </div>
             ` : ''}
         `;
