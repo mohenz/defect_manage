@@ -3213,6 +3213,13 @@ window.App = {
 
             <div class="${id ? '' : 'form-container animate-in'}">
                 <form id="defectForm">
+                    <div class="form-group" style="${id ? '' : 'display: none;'}">
+                        <label>결함관리번호 <span style="font-size: 0.75rem; color: var(--accent); font-weight: normal; margin-left: 0.5rem;">(클릭하여 복사)</span></label>
+                        <input type="text" value="#${id || ''}" readonly 
+                               style="background: var(--bg-secondary); font-weight: bold; color: var(--accent); cursor: pointer;" 
+                               onclick="App.copyDefectId('${id}')" title="클릭하여 복사">
+                    </div>
+
                     <div class="form-group">
                         <label>테스트 구분</label>
                         <select name="test_type" required>
@@ -3506,6 +3513,13 @@ window.App = {
                     <div class="form-group">
                         <label>📄 결함 내용 또는 재현 절차 (필수)</label>
                         <textarea name="steps_to_repro" rows="5" required placeholder="결함내용을 입력하세요">${this.sanitize(item.steps_to_repro || '')}</textarea>
+                    </div>
+
+                    <div class="form-group" style="${item.defect_id ? '' : 'display: none;'}">
+                        <label>결함관리번호 <span style="font-size: 0.75rem; color: var(--accent); font-weight: normal; margin-left: 0.5rem;">(클릭하여 복사)</span></label>
+                        <input type="text" value="#${item.defect_id || ''}" readonly 
+                               style="background: var(--bg-secondary); font-weight: bold; color: var(--accent); cursor: pointer;" 
+                               onclick="App.copyDefectId('${item.defect_id}')" title="클릭하여 복사">
                     </div>
 
                     <div class="form-group">
@@ -3889,6 +3903,11 @@ window.App = {
         const screenUrlInput = document.querySelector('input[name="screen_url"]');
         const screenUrl = this.normalizeScreenUrl(screenUrlInput?.value || '');
         return this.copyText(screenUrl, 'Screen URL을 복사했습니다.');
+    },
+
+    copyDefectId(id) {
+        if (!id) return;
+        this.copyText(String(id), `결함관리번호 #${id}를 복사했습니다.`);
     },
 
     isImageSource(url) {
