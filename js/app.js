@@ -107,6 +107,9 @@ window.App = {
             screen_url_query_length: screenUrlQueryLength,
             creator: payload.creator || '',
             assignee: payload.assignee || '',
+            action_due_date: payload.action_due_date || '',
+            action_start: payload.action_start || '',
+            action_end: payload.action_end || '',
             steps_length: String(payload.steps_to_repro || '').length,
             env_info_length: String(payload.env_info || '').length,
             has_screenshot: !!screenshot,
@@ -2938,7 +2941,7 @@ window.App = {
             </div>
 
             <div class="data-table-container animate-in">
-                <table style="min-width: 1400px;">
+                <table style="min-width: 1520px;">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -2951,6 +2954,7 @@ window.App = {
                             <th>메뉴/화면명</th>
                             <th>등록자</th>
                             <th>담당자</th>
+                            <th>조치예정일</th>
                             <th>등록일</th>
                             <th>관리</th>
                         </tr>
@@ -2970,6 +2974,7 @@ window.App = {
                                 <td>${this.sanitize(d.menu_name || '-')}/${this.sanitize(d.screen_name || '-')}</td>
                                 <td>${this.sanitize(d.creator || '-')}</td>
                                 <td>${this.sanitize(d.assignee || '-')}</td>
+                                <td>${d.action_due_date ? this.formatDateKST(d.action_due_date, false) : '-'}</td>
                                 <td>${this.formatDateKST(d.created_at)}</td>
                                 <td>
                                     <div style="display:flex; gap:0.5rem;">
@@ -3071,7 +3076,7 @@ window.App = {
             const headers = [
                 'ID', '구분', '제목', '결함식별', '심각도', '우선순위', '상태',
                 '메뉴명', '화면명', '재현단계', '환경정보', '등록자', '담당자',
-                '등록일', '수정일', '조치내용', '조치시작일', '조치종료일'
+                '등록일', '수정일', '조치내용', '조치예정일', '조치시작일', '조치종료일'
             ];
             const csvRows = [headers.join(',')];
 
@@ -3093,6 +3098,7 @@ window.App = {
                     this.formatDateKST(d.created_at),
                     d.updated_at ? this.formatDateKST(d.updated_at) : '',
                     `"${(d.action_comment || '').replace(/"/g, '""')}"`,
+                    d.action_due_date ? this.formatDateKST(d.action_due_date, false) : '',
                     d.action_start ? this.formatDateKST(d.action_start, false) : '',
                     d.action_end ? this.formatDateKST(d.action_end, false) : ''
                 ];
@@ -3386,7 +3392,11 @@ window.App = {
                             <textarea name="action_comment" rows="4" placeholder="원인 분석 및 조치 내용을 상세히 기록하세요">${this.sanitize(item.action_comment || '')}</textarea>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>조치 예정일</label>
+                                <input type="date" name="action_due_date" value="${this.getKSTDateString(item.action_due_date)}">
+                            </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label>조치 시작일</label>
                                 <input type="date" name="action_start" value="${this.getKSTDateString(item.action_start)}">
@@ -3556,6 +3566,7 @@ window.App = {
                     <input type="hidden" name="assignee" value="${this.sanitize(item.assignee || '')}">
                     <input type="hidden" name="defect_identification" value="${this.sanitize(item.defect_identification || '')}">
                     <input type="hidden" name="action_comment" value="">
+                    <input type="hidden" name="action_due_date" value="">
                     <input type="hidden" name="action_start" value="">
                     <input type="hidden" name="action_end" value="">
                     <input type="hidden" name="env_info" value="${this.sanitize(envInfo)}">
@@ -3599,8 +3610,12 @@ window.App = {
                     <textarea name="action_comment" rows="6" placeholder="원인 분석 및 조치 내용을 상세히 기록하세요">${this.sanitize(item.action_comment || '')}</textarea>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                        <div class="form-group">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label>조치 예정일</label>
+                        <input type="date" name="action_due_date" value="${App.getKSTDateString(item.action_due_date)}">
+                    </div>
+                    <div class="form-group">
                         <label>조치 시작일</label>
                         <input type="date" name="action_start" value="${App.getKSTDateString(item.action_start)}">
                     </div>
@@ -4228,6 +4243,7 @@ window.App = {
             status: value('status', existing.status || 'Open'),
             defect_identification: value('defect_identification', existing.defect_identification || ''),
             action_comment: value('action_comment', existing.action_comment || ''),
+            action_due_date: value('action_due_date', existing.action_due_date || '') || null,
             action_start: value('action_start', existing.action_start || '') || null,
             action_end: value('action_end', existing.action_end || '') || null,
             env_info: value('env_info', existing.env_info || ''),

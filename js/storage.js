@@ -5,7 +5,7 @@
 console.log("[Storage] Initializing Supabase Client with URL:", CONFIG.SUPABASE_URL);
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 const DEFECT_SUMMARY_COLUMNS = 'defect_id, title, status, severity, defect_identification, test_type, creator, assignee';
-const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end';
+const DEFECT_LIST_COLUMNS = 'defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, screen_url, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_due_date, action_start, action_end';
 const DEFECT_FIELD_LENGTH_HINTS = {
     title: 200,
     test_type: 50,
@@ -342,7 +342,7 @@ const StorageService = {
         const defectIdFilter = normalizeDefectIdFilter(filters.defectId);
         let query = supabaseClient
             .from('defects')
-            .select('defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_start, action_end')
+            .select('defect_id, title, defect_identification, severity, priority, status, test_type, menu_name, screen_name, steps_to_repro, env_info, creator, assignee, created_at, updated_at, action_comment, action_due_date, action_start, action_end')
             .eq('is_deleted', 'N');
 
         if (defectIdFilter !== null) query = query.eq('defect_id', defectIdFilter);

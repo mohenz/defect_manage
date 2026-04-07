@@ -45,6 +45,7 @@ CREATE TABLE defects (
     creator         VARCHAR(255),                -- 등록자 (사용자 성함 연동)
     assignee        VARCHAR(255),                -- 담당 조치자 (사용자 성함 연동)
     action_comment  TEXT,                        -- 결함 조치 내용
+    action_due_date DATE,                        -- 조치 예정일
     action_start    DATE,                        -- 조치 시작일
     action_end      DATE,                        -- 조치 종료일
     is_deleted      VARCHAR(1) DEFAULT 'N',      -- 삭제 여부 (Y/N)
