@@ -5,10 +5,14 @@
 const bcrypt = typeof dcodeIO !== 'undefined' ? dcodeIO.bcrypt : null;
 const DEFECT_SAVE_ERROR_LOG_KEY = 'defect_save_error_logs';
 const DEFECT_SAVE_ERROR_LOG_LIMIT = 50;
+const DEFECT_COMPLETED_STATUSES = ['Resolved', 'Staging', 'Closed'];
+const DEFECT_NOT_COMPLETED_STATUSES = ['Open', 'In Progress', 'Reopened'];
+const LIST_STATUS_PRESET_NOT_COMPLETED = '__NOT_COMPLETED__';
 const createDefaultListSearch = (overrides = {}) => ({
     defectId: '',
     severity: '',
     status: '',
+    statusPreset: '',
     title: '',
     stepsToRepro: '',
     creator: '',
@@ -1084,8 +1088,9 @@ window.App = {
 
         this.state.stats = {
             total: d.length,
-            open: d.filter(x => ['Open', 'In Progress', 'Reopened'].includes(x.status)).length,
-            resolved: d.filter(x => ['Resolved', 'Staging', 'Closed'].includes(x.status)).length,
+            inProgress: d.filter(x => x.status === 'In Progress').length,
+            notCompleted: d.filter(x => DEFECT_NOT_COMPLETED_STATUSES.includes(x.status)).length,
+            resolved: d.filter(x => DEFECT_COMPLETED_STATUSES.includes(x.status)).length,
             critical: d.filter(x => x.severity === 'Critical').length
         };
     },
@@ -1902,7 +1907,7 @@ window.App = {
             .filter(user => user.role === '조치자' && this.isUserActive(user.status))
             .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
         const statusCodes = this.getCodesByGroup('STATUS');
-        const completedStatuses = ['Resolved', 'Staging', 'Closed'];
+        const completedStatuses = DEFECT_COMPLETED_STATUSES;
         const buildStatusRow = (label, department, userStatus, assignedDefects, isUnassigned = false) => {
             const counts = {};
             statusCodes.forEach(code => {
@@ -2050,122 +2055,67 @@ window.App = {
     },
 
     viewAssigneeDefects(assigneeName) {
-        this.state.listConfig.search = {
-            severity: '',
-            status: '',
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: assigneeName,
-            assigneeUnassigned: false,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+        this.state.listConfig.search = createDefaultListSearch({
+            assignee: assigneeName
+        });
         this.state.listConfig.page = 1;
         this.navigate('list');
     },
 
     viewAssigneeDefectsByStatus(assigneeName, status) {
-        this.state.listConfig.search = {
-            severity: '',
+        this.state.listConfig.search = createDefaultListSearch({
             status: status,
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: assigneeName,
-            assigneeUnassigned: false,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+            assignee: assigneeName
+        });
         this.state.listConfig.page = 1;
         this.navigate('list');
     },
 
     viewUnassignedDefects(status = '') {
-        this.state.listConfig.search = {
-            severity: '',
+        this.state.listConfig.search = createDefaultListSearch({
             status: status,
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: '',
-            assigneeUnassigned: true,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+            assigneeUnassigned: true
+        });
         this.state.listConfig.page = 1;
         this.navigate('list');
     },
 
     viewSeverityDefects(severity, status = '') {
-        this.state.listConfig.search = {
+        this.state.listConfig.search = createDefaultListSearch({
             severity: severity || '',
-            status: status || '',
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: '',
-            assigneeUnassigned: false,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+            status: status || ''
+        });
         this.state.listConfig.page = 1;
         this.navigate('list');
     },
 
     viewIdentificationDefects(identification) {
-        this.state.listConfig.search = {
-            severity: '',
-            status: '',
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: '',
-            assigneeUnassigned: false,
-            identificationUnassigned: false,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: identification || '',
-            screenPath: ''
-        };
+        this.state.listConfig.search = createDefaultListSearch({
+            identification: identification || ''
+        });
         this.state.listConfig.page = 1;
         this.navigate('list');
     },
 
     viewIdentificationUnassignedDefects() {
-        this.state.listConfig.search = {
-            severity: '',
-            status: '',
-            title: '',
-            stepsToRepro: '',
-            creator: '',
-            assignee: '',
-            assigneeUnassigned: false,
-            identificationUnassigned: true,
-            testType: '',
-            dateStart: '',
-            dateEnd: '',
-            identification: '',
-            screenPath: ''
-        };
+        this.state.listConfig.search = createDefaultListSearch({
+            identificationUnassigned: true
+        });
         this.state.listConfig.page = 1;
+        this.navigate('list');
+    },
+
+    viewNotCompletedDefects() {
+        this.state.listConfig.search = createDefaultListSearch({
+            statusPreset: LIST_STATUS_PRESET_NOT_COMPLETED
+        });
+        this.state.listConfig.page = 1;
+
+        if (this.state.currentView === 'list') {
+            this.fetchData({ viewHint: 'list' });
+            return;
+        }
+
         this.navigate('list');
     },
 
@@ -2356,7 +2306,7 @@ window.App = {
         const defects = this.state.allDefectsSummary.filter(d => this.isTestTypeEnabled(d.test_type));
         const severityCodes = this.getCodesByGroup('SEVERITY');
         const statusCodes = this.getCodesByGroup('STATUS');
-        const completedStatuses = ['Resolved', 'Staging', 'Closed'];
+        const completedStatuses = DEFECT_COMPLETED_STATUSES;
 
         // 1. 등록자별/심각도별 통계 계산
         const creatorStats = {};
@@ -2490,10 +2440,20 @@ window.App = {
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">진행 중</div>
-                    <div class="stat-value" style="color: var(--warning); display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span>${stats.open}</span>
-                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.open, stats.total)}%)</span>
+                    <div class="stat-value" style="color: var(--info); display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span>${stats.inProgress}</span>
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.inProgress, stats.total)}%)</span>
                     </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">조치 미완료</div>
+                    <div class="stat-value" style="color: var(--warning); display: flex; align-items: baseline; gap: 0.5rem;">
+                        ${stats.notCompleted > 0
+                ? `<button type="button" title="조치 미완료 결함 목록 조회" onclick="App.viewNotCompletedDefects()" style="padding: 0; margin: 0; border: none; background: none; color: var(--warning); font: inherit; font-size: inherit; font-weight: inherit; line-height: 1; cursor: pointer;"><span>${stats.notCompleted}</span></button>`
+                : '<span>0</span>'}
+                        <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.notCompleted, stats.total)}%)</span>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">숫자 클릭 시 목록 조회</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">조치 완료</div>
@@ -2888,6 +2848,7 @@ window.App = {
                         <label style="font-size: 0.75rem;">상태</label>
                         <select id="searchStatus">
                             <option value="">전체</option>
+                            <option value="${LIST_STATUS_PRESET_NOT_COMPLETED}" ${search.statusPreset === LIST_STATUS_PRESET_NOT_COMPLETED ? 'selected' : ''}>조치 미완료</option>
                             ${this.getCodesByGroup('STATUS').map(c => `
                                 <option value="${c.code_value}" ${search.status === c.code_value ? 'selected' : ''}>${c.code_name}</option>
                             `).join('')}
@@ -3035,10 +2996,12 @@ window.App = {
         }
 
         const selectedIdentification = document.getElementById('searchIdentification').value;
+        const selectedStatus = document.getElementById('searchStatus').value;
         this.state.listConfig.search = createDefaultListSearch({
             defectId,
             severity: document.getElementById('searchSeverity').value,
-            status: document.getElementById('searchStatus').value,
+            status: selectedStatus === LIST_STATUS_PRESET_NOT_COMPLETED ? '' : selectedStatus,
+            statusPreset: selectedStatus === LIST_STATUS_PRESET_NOT_COMPLETED ? LIST_STATUS_PRESET_NOT_COMPLETED : '',
             identification: selectedIdentification === '__UNASSIGNED__' ? '' : selectedIdentification,
             identificationUnassigned: selectedIdentification === '__UNASSIGNED__',
             screenPath: document.getElementById('searchScreenPath').value,

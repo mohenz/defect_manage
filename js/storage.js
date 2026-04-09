@@ -22,6 +22,8 @@ const DEFECT_FIELD_LENGTH_HINTS = {
 };
 const ACTION_RECHECK_STATUS_VALUES = ['closed', 'resolved', 'staging'];
 const ACTION_RECHECK_QUERY_STATUS_VALUES = ['Closed', 'Resolved', 'Staging', 'closed', 'resolved', 'staging'];
+const STORAGE_LIST_STATUS_PRESET_NOT_COMPLETED = '__NOT_COMPLETED__';
+const STORAGE_NOT_COMPLETED_STATUS_VALUES = ['Open', 'In Progress', 'Reopened'];
 
 function normalizeDefectIdFilter(defectId) {
     const normalized = String(defectId || '').trim();
@@ -60,6 +62,18 @@ function parseScreenPathFilter(screenPath = '') {
         menuName: parts.join(' > '),
         screenName
     };
+}
+
+function applyStatusFilter(query, filters = {}) {
+    if (filters.statusPreset === STORAGE_LIST_STATUS_PRESET_NOT_COMPLETED) {
+        return query.in('status', STORAGE_NOT_COMPLETED_STATUS_VALUES);
+    }
+
+    if (filters.status) {
+        return query.eq('status', filters.status);
+    }
+
+    return query;
 }
 
 function collectOverflowCandidates(payload = {}, options = {}) {
@@ -299,7 +313,7 @@ const StorageService = {
 
         if (defectIdFilter !== null) query = query.eq('defect_id', defectIdFilter);
         if (filters.severity) query = query.eq('severity', filters.severity);
-        if (filters.status) query = query.eq('status', filters.status);
+        query = applyStatusFilter(query, filters);
         if (filters.title) query = query.ilike('title', `%${filters.title}%`);
         if (filters.stepsToRepro) query = query.ilike('steps_to_repro', `%${filters.stepsToRepro}%`);
         if (filters.testType) query = query.eq('test_type', filters.testType);
@@ -347,7 +361,7 @@ const StorageService = {
 
         if (defectIdFilter !== null) query = query.eq('defect_id', defectIdFilter);
         if (filters.severity) query = query.eq('severity', filters.severity);
-        if (filters.status) query = query.eq('status', filters.status);
+        query = applyStatusFilter(query, filters);
         if (filters.title) query = query.ilike('title', `%${filters.title}%`);
         if (filters.stepsToRepro) query = query.ilike('steps_to_repro', `%${filters.stepsToRepro}%`);
         if (filters.testType) query = query.eq('test_type', filters.testType);
