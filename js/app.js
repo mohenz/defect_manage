@@ -2453,7 +2453,6 @@ window.App = {
                 : '<span>0</span>'}
                         <span style="font-size: 1rem; font-weight: 500; opacity: 0.75;">(${this.pct(stats.notCompleted, stats.total)}%)</span>
                     </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">숫자 클릭 시 목록 조회</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">조치 완료</div>
