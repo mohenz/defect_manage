@@ -2550,7 +2550,6 @@ window.App = {
                                     `).join('')}
                                     <td style="text-align: center;">
                                         <strong class="completion-rate-text signal-${this.getCompletionSignal(row.completionRate).key}">${row.completionRate}%</strong>
-                                        <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed || 0}/${row.total || 0}</div>
                                     </td>
                                 </tr>
                             `).join('') || `<tr><td colspan="${3 + statusCodes.length}" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>`}
@@ -2567,7 +2566,6 @@ window.App = {
                                 `).join('')}
                                 <td style="text-align: center; padding: 1rem;">
                                     <strong class="completion-rate-text signal-${this.getCompletionSignal(statusGrandTotal.completionRate).key}">${statusGrandTotal.completionRate}%</strong>
-                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${statusGrandTotal.completed}/${statusGrandTotal.total}</div>
                                 </td>
                             </tr>
                         </tfoot>
@@ -2609,7 +2607,6 @@ window.App = {
                                     `).join('')}
                                     <td style="text-align: center;">
                                         <strong class="completion-rate-text signal-${this.getCompletionSignal(row.completionRate).key}">${row.completionRate}%</strong>
-                                        <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed || 0}/${row.total || 0}</div>
                                     </td>
                                 </tr>
                             `).join('') || `<tr><td colspan="${3 + statusCodes.length}" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>`}
@@ -2626,7 +2623,6 @@ window.App = {
                                 `).join('')}
                                 <td style="text-align: center; padding: 1rem;">
                                     <strong class="completion-rate-text signal-${this.getCompletionSignal(severityStatusGrandTotal.completionRate).key}">${severityStatusGrandTotal.completionRate}%</strong>
-                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${severityStatusGrandTotal.completed}/${severityStatusGrandTotal.total}</div>
                                 </td>
                             </tr>
                         </tfoot>
