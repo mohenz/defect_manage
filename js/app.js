@@ -2429,13 +2429,13 @@ window.App = {
 
         // 3. 결함 조치 현황 계산 (테스트 구분별)
         const statusStats = {};
-        const statusGrandTotal = { total: 0 };
+        const statusGrandTotal = { total: 0, completed: 0 };
         statusCodes.forEach(c => statusGrandTotal[c.code_value] = 0);
 
         defects.forEach(d => {
             const type = d.test_type || '단위테스트';
             if (!statusStats[type]) {
-                statusStats[type] = { total: 0 };
+                statusStats[type] = { total: 0, completed: 0 };
                 statusCodes.forEach(c => statusStats[type][c.code_value] = 0);
             }
             statusStats[type].total++;
@@ -2444,8 +2444,21 @@ window.App = {
                 statusStats[type][d.status]++;
                 statusGrandTotal[d.status]++;
             }
+            if (completedStatuses.includes(d.status)) {
+                statusStats[type].completed++;
+                statusGrandTotal.completed++;
+            }
         });
-        const sortedStatusTypes = Object.entries(statusStats).sort((a, b) => b[1].total - a[1].total);
+        const sortedStatusTypes = Object.entries(statusStats)
+            .map(([type, stats]) => ({
+                type,
+                ...stats,
+                completionRate: stats.total > 0 ? this.pct(stats.completed || 0, stats.total) : 0
+            }))
+            .sort((a, b) => b.total - a.total);
+        statusGrandTotal.completionRate = statusGrandTotal.total > 0
+            ? this.pct(statusGrandTotal.completed, statusGrandTotal.total)
+            : 0;
 
         // 4. 결함식별 통계 계산
         const identificationStats = { total: defects.length, unassigned: 0 };
@@ -2524,18 +2537,23 @@ window.App = {
                                 ${statusCodes.map(c => `
                                     <th style="text-align: center; color: ${c.color || 'inherit'};">${c.code_name} (${c.code_value})</th>
                                 `).join('')}
+                                <th style="text-align: center;">조치완료율</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedStatusTypes.map(([type, s]) => `
+                            ${sortedStatusTypes.map(row => `
                                 <tr>
-                                    <td><strong>${this.getCodeName('TEST_TYPE', type)}</strong></td>
-                                    <td style="text-align: center;"><strong>${s.total}</strong></td>
+                                    <td><strong>${this.getCodeName('TEST_TYPE', row.type)}</strong></td>
+                                    <td style="text-align: center;"><strong>${row.total}</strong></td>
                                     ${statusCodes.map(c => `
-                                        <td style="text-align: center;">${s[c.code_value]}${s.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(s[c.code_value], s.total)}%)</span>` : ''}</td>
+                                        <td style="text-align: center;">${row[c.code_value]}${row.total > 0 ? ` <span style="color:var(--text-secondary);font-size:0.8rem;">(${this.pct(row[c.code_value], row.total)}%)</span>` : ''}</td>
                                     `).join('')}
+                                    <td style="text-align: center;">
+                                        <strong class="completion-rate-text signal-${this.getCompletionSignal(row.completionRate).key}">${row.completionRate}%</strong>
+                                        <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${row.completed || 0}/${row.total || 0}</div>
+                                    </td>
                                 </tr>
-                            `).join('') || '<tr><td colspan="10" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>'}
+                            `).join('') || `<tr><td colspan="${3 + statusCodes.length}" style="text-align: center; padding: 2rem;">데이터가 없습니다.</td></tr>`}
                         </tbody>
                         ${sortedStatusTypes.length > 0 ? `
                         <tfoot style="background: rgba(255,255,255,0.05); font-weight: 700; border-top: 2px solid var(--border);">
@@ -2547,6 +2565,10 @@ window.App = {
                                         ${statusGrandTotal[c.code_value]}${statusGrandTotal.total > 0 ? ` <span style="font-size:0.8rem;opacity:0.8;">(${this.pct(statusGrandTotal[c.code_value], statusGrandTotal.total)}%)</span>` : ''}
                                     </td>
                                 `).join('')}
+                                <td style="text-align: center; padding: 1rem;">
+                                    <strong class="completion-rate-text signal-${this.getCompletionSignal(statusGrandTotal.completionRate).key}">${statusGrandTotal.completionRate}%</strong>
+                                    <div style="font-size:0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${statusGrandTotal.completed}/${statusGrandTotal.total}</div>
+                                </td>
                             </tr>
                         </tfoot>
                         ` : ''}
