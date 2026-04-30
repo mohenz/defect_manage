@@ -275,18 +275,33 @@ const StorageService = {
     async getDefectsSummaryForStats() {
         console.log("[Storage] Fetching stats summary with timeout...");
         const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Supabase Stats Timeout")), 4000); // 좀 더 넉넉하게 4초
+            setTimeout(() => reject(new Error("Supabase Stats Timeout")), 10000);
         });
 
         const queryPromise = (async () => {
             try {
-                const { data, error } = await supabaseClient
-                    .from('defects')
-                    .select(DEFECT_SUMMARY_COLUMNS)
-                    .eq('is_deleted', 'N');
+                const pageSize = 1000;
+                const rows = [];
+                let from = 0;
 
-                if (error) throw error;
-                return data;
+                while (true) {
+                    const { data, error } = await supabaseClient
+                        .from('defects')
+                        .select(DEFECT_SUMMARY_COLUMNS)
+                        .eq('is_deleted', 'N')
+                        .order('defect_id', { ascending: true })
+                        .range(from, from + pageSize - 1);
+
+                    if (error) throw error;
+
+                    const pageRows = data || [];
+                    rows.push(...pageRows);
+
+                    if (pageRows.length < pageSize) break;
+                    from += pageSize;
+                }
+
+                return rows;
             } catch (err) {
                 console.error('[Storage] Supabase stats error:', err.message);
                 throw err;
